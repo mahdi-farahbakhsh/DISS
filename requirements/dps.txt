@@ -31,8 +31,6 @@ menpo
 mxnet
 opencv-python
 pandas
-Cython<3.0
-bcolz==1.2.1
 scikit-learn
 
 # Requirements needed for CLIP
