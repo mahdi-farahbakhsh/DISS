@@ -1,4 +1,3 @@
-````markdown
 ## 🛠️ Getting Started
 
 ### 1) Clone Repositories
