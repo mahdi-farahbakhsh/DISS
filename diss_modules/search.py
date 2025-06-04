@@ -177,39 +177,3 @@ class GroupMeetingSearch(Search):
                 raise ValueError(f"Unknown mode: {mode!r}")
         return np.array(all_selected, dtype=int)
 
-@register_search_method('FK-steering')
-class FKSteeringSearch(GroupMeetingSearch):
-    def __init__(self, num_particles, base, method='max'):
-        super().__init__(num_particles=num_particles, base=base, min_group=num_particles)
-        self.method = method
-        self.history_rewards = np.zeros(self.num_particles)
-        if method == 'max':
-            self.history_rewards = -1e6 * np.ones(self.num_particles)
-
-    def search(self, rewards, step, **kwargs):
-        rewards = - np.array(rewards) ** 2
-        if self.method == 'difference':
-            p = rewards - self.history_rewards
-            self.history_rewards = rewards
-        elif self.method == 'max':
-            if (step - 1) % int(self.base * self.num_particles / 2) == 0:
-                self.history_rewards = -1e6 * np.ones(self.num_particles)
-            self.history_rewards = np.maximum(rewards, self.history_rewards)
-            p = self.history_rewards
-            print(np.sqrt(-p))
-        elif self.method == 'sum':
-            if (step - 1) % int(self.base * self.num_particles / 2) == 0:
-                self.history_rewards = np.zeros(self.num_particles)
-            self.history_rewards += rewards
-            p = self.history_rewards
-            print(np.sqrt(-p))
-        else:
-            raise ValueError(f"Method {self.method} not supported!")
-
-        p = np.exp(600 * p / np.max(np.abs(p)))
-
-        p = p / np.sum(p)
-        selected_idxs = np.random.choice(list(range(self.num_particles)), p=p, size=self.num_particles, replace=True)
-        self.history_rewards = self.history_rewards[selected_idxs]
-
-        return selected_idxs

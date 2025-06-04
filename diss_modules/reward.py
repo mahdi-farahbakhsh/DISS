@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 import torch
 import numpy as np
 from torchvision import transforms
-from AdaFace import inference
-from AdaFace.face_alignment import align, mtcnn
+import inference  # from AdaFace
+from face_alignment import align, mtcnn  # from AdaFace
 from pathlib import Path
 from PIL import Image
 import torch.nn.functional as F
@@ -31,28 +31,6 @@ def get_reward_method(name: str, **kwargs):
 
 
 class Reward(ABC):
-    """
-    Abstract base class for all reward functions used in guided diffusion or sampling.
-
-    Subclasses should implement custom logic to compute a reward signal for a given input
-    (e.g., image, text, or other modality) that can be used for steering diffusion sampling
-    via gradient-based or search-based methods.
-
-    Note:
-        This base class is designed to be flexible for multiple types of guidance:
-        - Face recognition similarity
-        - Style transfer alignment
-        - Text-to-image alignment
-        - Any task-specific reward signal
-
-    To implement a custom reward:
-        1. Inherit from this class.
-        2. Implement the `get_reward` method.
-        3. Optionally implement any setup methods like `set_gt_embeddings`.
-
-    Methods:
-        get_reward(**kwargs): Abstract method to compute and return a reward score.
-    """
 
     def __init__(self, **kwargs):
         """
@@ -91,7 +69,7 @@ class Reward(ABC):
         pass
 
     @abstractmethod
-    def set_gt_embeddings(self, **kwargs):
+    def set_side_info(self, **kwargs):
         pass
 
 
@@ -109,14 +87,15 @@ class AdaFaceReward(Reward):
     Attributes:
         files (List[Path]): List of all image file paths in the dataset directory.
         model: Pretrained AdaFace embedding model.
-        gt_embeddings (torch.Tensor): Ground-truth face embedding.
+        side_info (torch.Tensor): Ground-truth face embedding.
         device (str): Computation device, e.g., 'cuda' or 'cpu'.
         mtcnn_model: Face detector and aligner (MTCNN).
         res (int): Target image resolution for preprocessing.
     """
+    ADAFACE_PATH = '../../third_party/AdaFace'
 
-    def __init__(self, data_path: str = 'dataset/si_daps/additional_images', pretrained_model: str = 'ir_50',
-                 resolution: int = 256, device: str = 'cuda:0', scale=1, freq=1, **kwargs):
+    def __init__(self, data_path: str = '../../data/additional_images', pretrained_model: str = 'ir_50',
+                 resolution: int = 256, device: str = 'cuda:0', scale=1, **kwargs):
         """
         Initializes the AdaFaceReward class.
 
@@ -131,13 +110,16 @@ class AdaFaceReward(Reward):
         file_types = ['*.jpg', '*.JPG', '*.jpeg', '*.JPEG', '*.png', '*.PNG']
         self.device = device
         self.files = sorted([f for ft in file_types for f in Path(data_path).rglob(ft)])
-        self.model = inference.load_pretrained_model(pretrained_model).to(self.device)
-        self.gt_embeddings = None
-        self.mtcnn_model = mtcnn.MTCNN(device=self.device, crop_size=(112, 112))
 
+        original_dir = os.getcwd()
+        os.chdir(self.ADAFACE_PATH)
+        self.model = inference.load_pretrained_model(pretrained_model).to(self.device)
+        os.chdir(original_dir)
+
+        self.side_info = None
+        self.mtcnn_model = mtcnn.MTCNN(device=self.device, crop_size=(112, 112))
         self.res = resolution
         self.scale = scale
-        self.freq = freq
         self.name = 'adaface'
         self.embed_size = 512
 
@@ -153,9 +135,9 @@ class AdaFaceReward(Reward):
             torch.Tensor: A tensor of shape B containing reward values.
         """
         embed = self._embeddings(images)
-        return - torch.norm(self.gt_embeddings - embed, dim=1)
+        return - torch.norm(self.side_info - embed, dim=1)
 
-    def set_gt_embeddings(self, index: int) -> None:
+    def set_side_info(self, index: int) -> None:
         """
         Sets the ground-truth embedding by loading and embedding the additional image
         at the given index in the dataset.
@@ -174,8 +156,8 @@ class AdaFaceReward(Reward):
         if img_tensor.shape[0] == 1:
             img_tensor = img_tensor.expand(3, -1, -1)
 
-        # Set gt embedding
-        self.gt_embeddings = self._embeddings(img_tensor.unsqueeze(0)).detach()
+        # Set side information
+        self.side_info = self._embeddings(img_tensor.unsqueeze(0)).detach()
 
     def _embeddings(self, tensor_images: torch.Tensor) -> torch.Tensor:
         """
@@ -199,7 +181,7 @@ class AdaFaceReward(Reward):
                 aligned = align.get_aligned_face('', rgb_pil_image=img)
                 aligned_images.append(inference.to_input(aligned).to(self.device))
             except Exception as e:
-                print('Error in face alignment at index {0}, adding fallback embedding.'.format(i), flush=True)
+                print('No face detected in x0 at index {0}, adding fallback embedding.'.format(i), flush=True)
                 failed_indices.append(i)
                 aligned_images.append(torch.randn((1, 3, 112, 112), device=self.device))
 
@@ -212,16 +194,6 @@ class AdaFaceReward(Reward):
         return embeddings
 
     def get_gradients(self, images: torch.Tensor, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Args
-        ----
-        images : (B, C, H, W) tensor in [-1, 1] **with** requires_grad=True.
-
-        Returns
-        -------
-        distances : (B,)  L2 distances to `self.gt_embeddings`
-        grads      : (B, C, H, W)  ∂distance/∂pixel  (same device as images)
-        """
 
         B, C, H, W = images.shape
         images = images.clone().detach().requires_grad_(True)
@@ -239,7 +211,6 @@ class AdaFaceReward(Reward):
 
             if len(boxes) == 0:  # fallback → use whole frame
                 failed.append(i)
-                print('no face detected', flush=True)
                 bboxes.append(None)
             else:
                 x1, y1, x2, y2 = boxes[0][:4].astype(int)
@@ -272,10 +243,10 @@ class AdaFaceReward(Reward):
         # ------------------------------------------------------------------
         # 4. L2 distance to reference embedding
         # ------------------------------------------------------------------
-        if self.gt_embeddings is None:
-            raise RuntimeError("Call set_gt_embeddings(...) first.")
-        # distances = torch.norm(embeds - self.gt_embeddings, dim=1)  # (B,)
-        distances = ((embeds - self.gt_embeddings) ** 2).sum(dim=1)
+        if self.side_info is None:
+            raise RuntimeError("Call set_side_info(...) first.")
+        # distances = torch.norm(embeds - self.side_info, dim=1)  # (B,)
+        distances = ((embeds - self.side_info) ** 2).sum(dim=1)
 
         # ------------------------------------------------------------------
         # 5. Back‑prop to get ∂distance/∂image
@@ -291,11 +262,10 @@ class AdaFaceReward(Reward):
 
 @register_reward_method('measurement')
 class MeasurementReward(Reward):
-    def __init__(self, scale=1, freq=1, **kwargs):
+    def __init__(self, scale=1, **kwargs):
         super().__init__(**kwargs)
         self.operator = None
         self.scale = scale
-        self.freq = freq
         self.name = 'measurement'
         self.sigma = None
 
@@ -317,12 +287,12 @@ class MeasurementReward(Reward):
         self.operator = operator
         self.sigma = self.operator.sigma
 
-    def set_gt_embeddings(self, index: int, **kwargs):
+    def set_side_info(self, index: int, **kwargs):
         pass
 
 
 @register_reward_method('text-alignment')
-class TextAlignmentReward:
+class TextAlignmentReward(Reward):
     """prompt:
     I will give you an image. Your task is to write a single, concise caption for this image.
     The caption must be:
@@ -341,7 +311,7 @@ class TextAlignmentReward:
     """
 
     def __init__(self, data_path: str = 'dataset/si_daps/additional_texts', pretrained_model: str = 'ViT-B/32',
-                 resolution: int = 256, device: str = 'cuda:0', scale=1, freq=1, **kwargs):
+                 resolution: int = 256, device: str = 'cuda:0', scale=1, **kwargs):
         """
         Initializes the AdaFaceReward class.
 
@@ -368,9 +338,8 @@ class TextAlignmentReward:
         # this will download the ViT-B/32 weights on first run
         self.model, self.preprocess = clip.load("ViT-B/32", device=device)
         self.model.eval()
-        self.gt_embeddings = None
+        self.side_info = None
         self.scale = scale
-        self.freq = freq
         self.name = 'text-alignment'
 
         self.__channel_mean = torch.tensor([0.48145466, 0.4578275, 0.40821073], device=self.device).view(1, 3, 1, 1)
@@ -379,10 +348,10 @@ class TextAlignmentReward:
 
     def get_reward(self, images: torch.Tensor, **kwargs) -> torch.Tensor:
         embed = self._embeddings(images)
-        return - torch.norm(self.gt_embeddings - embed, dim=1)
+        return - torch.norm(self.side_info - embed, dim=1)
 
 
-    def set_gt_embeddings(self, index: int) -> None:
+    def set_side_info(self, index: int) -> None:
 
         path = self.files[index]
         with open(path, 'r', encoding='utf-8') as fp:
@@ -395,10 +364,10 @@ class TextAlignmentReward:
 
         with torch.no_grad():
             text_feats = self.model.encode_text(tokens)  # shape: [1, D]
-        self.gt_embeddings = text_feats.detach()
+        self.side_info = text_feats.detach()
         print(30 * '-')
-        print('in set_gt_embeddings: ')
-        print('shape of gt_embedding: ', self.gt_embeddings.shape)
+        print('in set_side_info: ')
+        print('shape of side_info: ', self.side_info.shape)
         print(30 * '-')
 
     def _embeddings(self, tensor_images):
