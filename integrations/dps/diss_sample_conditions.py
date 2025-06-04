@@ -171,7 +171,7 @@ def main():
             sample = sample_fn(
                 x_start=x_start,
                 measurement=y_n,
-                record=True,
+                record=False,
                 save_root=out_path,
                 gradient_rewards=gradient_rewards,
                 search_rewards=search_rewards,

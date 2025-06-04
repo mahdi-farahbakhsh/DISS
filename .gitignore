@@ -42,3 +42,4 @@ Thumbs.db
 # Ignore cloned repos and large model dirs
 third_party/
 integrations/dps/diffusion-posterior-sampling/
+integrations/dps/results/
