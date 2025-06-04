@@ -1,1 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.env
+.venv/
+env/
+venv/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Compiled source files
+*.o
+*.out
+*.exe
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Tool-specific cache files
+.mypy_cache/
+.pytest_cache/
+
+# Model and dataset files
+*.ckpt
+*.pt
+*.h5
+*.npz
+
+# IDE / editor files
+.idea/
+.vscode/
+
+# Ignore cloned repos and large model dirs
+third_party/
 integrations/dps/diffusion-posterior-sampling/
