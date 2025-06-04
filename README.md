@@ -1,33 +1,100 @@
-# Diffusion-based Inference-time Search using Side Information (DISS)
+````markdown
+## 🛠️ Getting Started
 
-Modular framework for inference-time search and reward-guided diffusion in image reconstruction tasks.
+### 1) Clone Repositories
 
-## 1. Clone required repositories
+Clone the required repositories:
+
+```bash
 git clone https://github.com/DPS2022/diffusion-posterior-sampling.git integrations/dps
 git clone https://github.com/VinAIResearch/blur-kernel-space-exploring integrations/dps/diffusion-posterior-sampling/bkse
 git clone https://github.com/LeviBorodenko/motionblur integrations/dps/diffusion-posterior-sampling/motionblur
+````
 
-## 2. Setup environment
+<br />
+
+### 2) Setup Conda Environment
+
+Create and activate a new Conda environment:
+
+```bash
 conda create -n DPS python=3.8
 conda activate DPS
-pip install -r requirements/dps.txt
-pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+```
 
-## 3. Download pretrained models
+<br />
+
+### 3) Install Dependencies
+
+Install Python requirements:
+
+```bash
+pip install -r requirements/dps.txt
+```
+
+Install PyTorch with CUDA 11.3:
+
+```bash
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+```
+
+<br />
+
+### 4) Download Pretrained Models
+
+Create the models directory and download pretrained checkpoints using `gdown`:
+
+```bash
 mkdir integrations/dps/diffusion-posterior-sampling/models
 gdown --id 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/dps/diffusion-posterior-sampling/models/ffhq_10m.pt
 gdown --id 1HAy7P19PckQLczVNXmVF-e_CRxq098uW -O integrations/dps/diffusion-posterior-sampling/models/imagenet256.pt
+```
 
-## 4. Patch the original DPS codebase
+<br />
+
+### 5) Enable Module Importability
+
+Automatically add missing `__init__.py` files for package-style imports:
+
+```bash
 python integrations/add_inits.py
-git apply integrations/dps/dps_modifications.patch
+```
 
-## 5. Install AdaFace
+<br />
+
+### 6) Apply Minimal Patch to DPS
+
+Patch DPS with minimal required changes:
+
+```bash
+git apply integrations/dps/dps_modifications.patch
+```
+
+<br />
+
+### 7) Setup AdaFace
+
+Clone AdaFace and install its dependencies:
+
+```bash
 mkdir third_party
 git clone https://github.com/mk-minchul/AdaFace.git third_party/AdaFace
 pip install -r requirements/adaface.txt
+```
+
+Download the pretrained AdaFace checkpoint:
+
+```bash
 mkdir third_party/AdaFace/pretrained
 gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaface_ir50_ms1mv2.ckpt
+```
+
+
+
+
+
+
+
 
 
 
