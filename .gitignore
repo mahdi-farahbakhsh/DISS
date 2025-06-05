@@ -43,3 +43,7 @@ Thumbs.db
 third_party/
 integrations/dps/diffusion-posterior-sampling/
 integrations/dps/results/
+
+integrations/blinddps/blind-dps/
+integrations/blinddps/results/
+
