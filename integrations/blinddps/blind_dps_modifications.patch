@@ -1,0 +1,310 @@
+diff --git a/guided_diffusion/blind_condition_methods.py b/guided_diffusion/blind_condition_methods.py
+index 8585490..bf7ea5a 100644
+--- a/guided_diffusion/blind_condition_methods.py
++++ b/guided_diffusion/blind_condition_methods.py
+@@ -68,6 +68,80 @@ class BlindConditioningMethod(ConditioningMethod):
+         
+         return dict(zip(keys, norm_grad)), norm
+ 
++
++class DissBlindConditioningMethod(ConditioningMethod):
++    def __init__(self, operator, noiser=None, **kwargs):
++        '''
++        Handle multiple score models.
++        Yet, support only gaussian noise measurement.
++        '''
++        assert isinstance(operator, BlindBlurOperator) or isinstance(operator, TurbulenceOperator)
++        self.operator = operator
++        self.noiser = noiser
++
++    def project(self, data, kernel, noisy_measuerment, **kwargs):
++        return self.operator.project(data=data, kernel=kernel, measurement=noisy_measuerment, **kwargs)
++
++    def grad_and_value(self,
++                       x_prev: Dict[str, torch.Tensor],
++                       x_0_hat: Dict[str, torch.Tensor],
++                       measurement: torch.Tensor,
++                       step=None,
++                       **kwargs):
++
++        if self.noiser.__name__ == 'gaussian' or self.noiser is None:  # why none?
++
++            assert sorted(x_prev) == sorted(x_0_hat), "x_prev and x_0_hat keys must match"
++            keys = sorted(x_prev)
++
++            x_prev_values = [x_prev[k] for k in keys]  # gradients will be taken wrt these
++            x_0_hat_values = [x_0_hat[k] for k in keys]
++
++            # forward pass for the whole batch in one shot
++            diff = measurement - self.operator.forward(*x_0_hat_values)
++            per_sample = diff.reshape(diff.shape[0], -1).norm(dim=1)
++            norm = per_sample.sum()
++
++            reg_info = kwargs.get('regularization', None)
++            if reg_info is not None:
++                for reg_target in reg_info:
++                    assert reg_target in keys, \
++                        f"Regularization target {reg_target} does not exist in x_0_hat."
++
++                    reg_ord, reg_scale = reg_info[reg_target]
++                    if reg_scale != 0.0:  # if got scale 0, skip calculating.
++                        value = reg_scale * torch.linalg.norm(x_0_hat[reg_target].view(-1), ord=reg_ord)
++                        norm = norm + value
++
++            gradient_rewards = kwargs.get("gradient_rewards", [])
++
++            if gradient_rewards and "img" in x_0_hat:  # rewards exist & target is present
++                print('taking gradient of reward with respect to x0', flush=True)
++                img_idx = keys.index("img")  # position of the “img” tensor
++                img_hat = x_0_hat_values[img_idx]  # x̂0["img"]
++
++                # build the summed reward gradient w.r.t. x̂0["img"]
++                combined_grad_img = sum(
++                    gr.scale * gr.get_gradients(img_hat)  # gr expects a tensor, not a dict
++                    for gr in gradient_rewards
++                )
++
++                # one-shot back-prop:  data-fidelity (norm)  +  reward term(s)
++                norm_grad = torch.autograd.grad(
++                    outputs=(norm, img_hat),  # scalar + tensor
++                    inputs=x_prev_values,
++                    grad_outputs=(torch.ones_like(norm), combined_grad_img),
++                )
++            else:
++                # no applicable reward term → use only the data-fidelity loss
++                norm_grad = torch.autograd.grad(outputs=norm, inputs=x_prev_values)
++
++        else:
++            raise NotImplementedError
++
++        return dict(zip(keys, norm_grad)), norm
++
++
+ @register_conditioning_method(name='ps')
+ class PosteriorSampling(BlindConditioningMethod):
+     def __init__(self, operator, noiser, **kwargs):
+@@ -86,4 +160,26 @@ class PosteriorSampling(BlindConditioningMethod):
+         for k in keys:
+             x_t.update({k: x_t[k] - scale[k]*norm_grad[k]})            
+         
++        return x_t, norm
++
++
++@register_conditioning_method(name='diss_ps')
++class DissPosteriorSampling(DissBlindConditioningMethod):
++    def __init__(self, operator, noiser, **kwargs):
++        super().__init__(operator, noiser)
++        assert kwargs.get('scale') is not None
++        self.scale = kwargs.get('scale')
++
++    def conditioning(self, x_prev, x_t, x_0_hat, measurement, step=None, **kwargs):
++        norm_grad, norm = self.grad_and_value(x_prev, x_0_hat, measurement, step, **kwargs)
++
++        scale = kwargs.get('scale')
++        if scale is None:
++            scale = self.scale
++
++        keys = sorted(x_prev.keys())
++
++        for k in keys:
++            x_t.update({k: x_t[k] - scale[k] * norm_grad[k]})
++
+         return x_t, norm
+\ No newline at end of file
+diff --git a/guided_diffusion/gaussian_diffusion.py b/guided_diffusion/gaussian_diffusion.py
+index 3c3d694..3af3830 100644
+--- a/guided_diffusion/gaussian_diffusion.py
++++ b/guided_diffusion/gaussian_diffusion.py
+@@ -173,7 +173,8 @@ class GaussianDiffusion:
+                       measurement,
+                       measurement_cond_fn,
+                       record,
+-                      save_root):
++                      save_root,
++                      **kwargs):
+         """
+         The function used for sampling from noise.
+         """ 
+@@ -374,6 +375,38 @@ class DDPM(SpacedDiffusion):
+ 
+         return {'sample': noisy_sample, 'pred_xstart': out['pred_xstart']}
+     
++@register_sampler(name='diss_ddpm')
++class DissDDPM(SpacedDiffusion):
++    def p_sample(self, model, x, t, search_rewards=None, search=None):
++        if search is None:
++            search = []
++        if search_rewards is None:
++            search_rewards = []
++
++        out = self.p_mean_variance(model, x, t)
++        sample = out['mean']
++
++
++        step =t.item()
++        if search_rewards and step % search.base == 0:
++            x0hat = out['pred_xstart']
++            rewards = torch.zeros(x0hat.shape[0], device=x0hat.device)
++            for reward in search_rewards:
++                with torch.no_grad():
++                    rew = reward.get_reward(x0hat)
++                rewards += rew
++            resampled_idx = search.search(rewards, step)
++            sample, out['pred_xstart'] = sample[resampled_idx], out['pred_xstart'][resampled_idx]
++
++
++        noise = torch.randn_like(x)
++        if t != 0:  # no noise when t == 0
++            noisy_sample = sample + torch.exp(0.5 * out['log_variance']) * noise
++        else:
++            noisy_sample = sample + noise * t
++
++        return {'sample': noisy_sample, 'pred_xstart': out['pred_xstart']}
++
+ 
+ @register_sampler(name='ddim')
+ class DDIM(SpacedDiffusion):
+@@ -415,7 +448,8 @@ class BlindDPS(DDPM):
+                       measurement,
+                       measurement_cond_fn,
+                       record,
+-                      save_root):
++                      save_root,
++                      **kwargs):
+        
+         assert isinstance(model, dict) and isinstance(x_start, dict)
+         
+@@ -478,6 +512,91 @@ class BlindDPS(DDPM):
+ # 
+         return updated
+ 
++
++@register_sampler(name='diss_blind_dps')
++class DissBlindDPS(DissDDPM):
++    def p_sample_loop(self,
++                      model: dict,
++                      x_start: dict,
++                      measurement,
++                      measurement_cond_fn,
++                      record,
++                      save_root,
++                      gradient_rewards,
++                      search_rewards,
++                      search,
++                      **kwargs):
++
++        assert isinstance(model, dict) and isinstance(x_start, dict)
++
++        # initialize
++        x_prev = x_start
++        device = list(x_prev.values())[0].device
++        batch_size = list(x_prev.values())[0].shape[0]
++
++        pbar = tqdm(list(range(self.num_timesteps))[::-1])
++        for idx in pbar:
++            time = torch.tensor([idx], device=device)
++
++            x_prev = dict((k, v.requires_grad_()) for k, v in x_prev.items())
++
++            # diffusion prior cases
++            output = dict()
++            for k in model:
++                if k == 'img':
++                    output.update({k: self.p_sample(x=x_prev[k], t=time, model=model[k], search_rewards=search_rewards, search=search)})
++                elif k == 'kernel':
++                    output.update({k: self.p_sample(x=x_prev[k], t=time, model=model[k])})
++
++            # uniform prior cases
++            for k in x_prev:
++                if output.get(k, None) is None:
++                    output.update({k: x_prev[k]})
++
++            # keep batch‑wise shape, normalise each kernel independently
++            kernel_hatx0 = output['kernel']['pred_xstart']
++            kernel_hatx0 = (kernel_hatx0 + 1.) / 2.
++            kernel_hatx0 = kernel_hatx0 / kernel_hatx0.sum(dim=(2, 3), keepdim=True)
++            # or:  F.normalize(kernel_hatx0.flatten(1), p=1, dim=1).view_as(kernel_hatx0)
++            output['kernel']['pred_xstart'] = kernel_hatx0
++
++
++            # give condition
++            noisy_measurement = self.q_sample(measurement, t=time)
++            x_t = dict((k, v['sample']) for k, v in output.items())
++            x_0_hat = dict((k, v['pred_xstart']) for k, v in output.items())
++
++            # Here, we implement gradually increasing scale that shows stable performance,
++            # while we reported the result with a constant scale in the paper.
++            scale = torch.from_numpy(self.sqrt_alphas_cumprod).to(time.device)[time].float()
++            scale = {k: scale for k in output.keys()}
++
++            updated, norm = measurement_cond_fn(x_t=x_t,
++                                                measurement=measurement,
++                                                noisy_measurement=noisy_measurement,
++                                                x_prev=x_prev,
++                                                x_0_hat=x_0_hat,
++                                                scale=scale,
++                                                step=idx,
++                                                gradient_rewards=gradient_rewards)
++
++            updated = dict((k, v.detach_()) for k, v in updated.items())
++            x_prev = updated
++
++            pbar.set_postfix({'norm': norm.item() / batch_size}, refresh=False)
++
++            if record:
++                if idx % 10 == 0:
++                    for k, v in updated.items():
++                        save_dir = os.path.join(save_root, f'progress/{k}')
++                        if not os.path.isdir(save_dir):
++                            os.makedirs(save_dir, exist_ok=True)
++                        file_path = os.path.join(save_dir, f"x_{str(idx).zfill(4)}.png")
++                        plt.imsave(file_path, clear_color(v))
++        #
++        updated['img'] = updated['img'].clamp(-1, 1)
++        return updated
++
+ # =================
+ # Helper functions
+ # =================
+diff --git a/guided_diffusion/measurements.py b/guided_diffusion/measurements.py
+index 0574f8c..9a1d99a 100644
+--- a/guided_diffusion/measurements.py
++++ b/guided_diffusion/measurements.py
+@@ -161,15 +161,32 @@ class BlindBlurOperator(LinearOperator):
+ 
+     def transpose(self, data, **kwargs):
+         return data
+-    
+-    def apply_kernel(self, data, kernel):
+-        #TODO: faster way to apply conv?:W
+-        
++
++    def apply_kernel_original_of_blind_dps(self, data, kernel):
++        # TODO: faster way to apply conv?:W
++
+         b_img = torch.zeros_like(data).to(self.device)
+         for i in range(3):
+-            b_img[:, i, :, :] = F.conv2d(data[:, i:i+1, :, :], kernel, padding='same')
++            b_img[:, i, :, :] = F.conv2d(data[:, i:i + 1, :, :], kernel, padding='same')
+         return b_img
+ 
++    def apply_kernel(self, data, kernel):
++        """
++        data   : (B,3,H,W)
++        kernel : (B,1,k,k)
++        returns: (B,3,H,W)
++        """
++        B, _, H, W = data.shape
++        # repeat the kernel 3× so every colour channel uses the same PSF
++        k = kernel.repeat_interleave(3, dim=0)  # (B*3,1,k,k)
++
++        # reshape data to match the grouping layout
++        x = data.view(1, B * 3, H, W)  # (1, B*3, H, W)
++
++        # each group contains exactly one input‑channel
++        y = F.conv2d(x, k, groups=B * 3, padding="same")  # (1, B*3, H, W)
++        return y.view(B, 3, H, W)
++
+ @register_operator(name='turbulence')
+ class TurbulenceOperator(LinearOperator):
+     def __init__(self, device, **kwargs) -> None:
