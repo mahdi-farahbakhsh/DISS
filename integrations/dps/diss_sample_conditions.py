@@ -10,7 +10,6 @@ import numpy as np
 import random
 
 #from menpo.feature import gradient
-print("Current working directory:", os.getcwd())
 
 from guided_diffusion.condition_methods import get_conditioning_method
 from guided_diffusion.measurements import get_noise, get_operator

@@ -1,0 +1,34 @@
+kernel: motion
+kernel_size: 64
+intensity: 0.5
+
+conditioning:
+  method: diss_ps
+  params:
+    scale: 0.3
+
+data:
+  name: ffhq
+  root: ../../data/images
+
+measurement:
+  operator:
+    name: blind_blur
+
+  noise:
+    name: gaussian
+    sigma: 0.02
+
+rewards:
+  - name: adaface
+    steering: [search]
+    data_path: '../../data/additional_images'
+    scale: 16 # the scale for gradient in MCMC steps
+
+search_algorithm:
+  name: group-meeting
+  base: 4
+  min_group: 2
+  max_group: 2
+
+num_particles: 2

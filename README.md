@@ -1,5 +1,9 @@
-## 🛠️ Getting Started
+# 🛠️ DISS: Inference-Time Search using Side Information for Diffusion-based Image Reconstruction
 
+## Introduction
+This is our paper:)
+
+## DPS Setup
 ### 1) Clone Repositories
 
 Clone the required repositories:
@@ -88,3 +92,25 @@ Download the pretrained AdaFace checkpoint:
 mkdir third_party/AdaFace/pretrained
 gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaface_ir50_ms1mv2.ckpt
 ```
+
+## Blind-DPS Setup
+
+### 1) Clone Repositories
+
+Clone the required repositories:
+
+```bash
+git clone https://github.com/BlindDPS/blind-dps.git integrations/blinddps/blind-dps
+git clone https://github.com/LeviBorodenko/motionblur integrations/blinddps/blind-dps/motionblur
+
+mkdir integrations/blinddps/blind-dps/models
+gdown 1nAhgjU8C6DCkOLmWTuPIzA6PMNkNmE5Z -O integrations/blinddps/blind-dps/models/ffhq_10m.pt
+gdown 11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j -O integrations/blinddps/blind-dps/models/kernel_checkpoint.pt
+
+python integrations/add_inits.py
+cd integrations/blinddps/blind-dps/
+git apply ../blind_dps_modifications.patch
+cd ../../..
+
+
+````

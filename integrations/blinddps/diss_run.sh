@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=DPS         # Job name
+#SBATCH --job-name=Blind-DPS         # Job name
 #SBATCH --mail-type=BEGIN,END,FAIL            # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --ntasks=8                      # Run on a 8 cpus (max)
 #SBATCH --gres=gpu:tesla:1              # Run on a single GPU (max)
@@ -13,14 +13,17 @@
 # select your singularity shell (currently cuda10.2-cudnn7-py36)
 singularity shell /mnt/lab_files/ECEN403-404/containers/cuda_10.2-cudnn7-py36.sif
 # source your virtual environmnet
-cd /mnt/shared-scratch/Narayanan_K/mahdi.farahbakhsh/DISS/integrations/dps
+cd /mnt/shared-scratch/Narayanan_K/mahdi.farahbakhsh/DISS/integrations/blinddps
 source activate DPS_paper
 
 # Set PYTHONPATH directly
-export PYTHONPATH=diffusion-posterior-sampling:../../../DISS:../../../DISS/third_party/AdaFace
+export PYTHONPATH=blind-dps:../../../DISS:../../../DISS/third_party/AdaFace
 
-python3 diss_sample_conditions.py \
-    --model_config=diffusion-posterior-sampling/configs/model_config.yaml \
-    --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
-    --task_config=diss_configs/diss_inpainting_config.yaml \
-    --path=check
+python3 diss_deblur.py \
+    --img_model_config=blind-dps/configs/model_config.yaml \
+    --kernel_model_config=blind-dps/configs/kernel_model_config.yaml \
+    --diffusion_config=diss_configs/diss_diffusion_config.yaml \
+    --task_config=diss_configs/diss_motion_deblur.yaml \
+    --reg_ord=1 \
+    --reg_scale=1.0 \
+    --path=test
