@@ -25,13 +25,15 @@ conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=
 git clone https://github.com/DPS2022/diffusion-posterior-sampling.git integrations/dps/diffusion-posterior-sampling
 git clone https://github.com/VinAIResearch/blur-kernel-space-exploring integrations/dps/diffusion-posterior-sampling/bkse
 git clone https://github.com/LeviBorodenko/motionblur integrations/dps/diffusion-posterior-sampling/motionblur
+
 # download pretrained models
 mkdir integrations/dps/diffusion-posterior-sampling/models
 gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/dps/diffusion-posterior-sampling/models/ffhq_10m.pt
 gdown 1HAy7P19PckQLczVNXmVF-e_CRxq098uW -O integrations/dps/diffusion-posterior-sampling/models/imagenet256.pt
-# apply minimal modifications to DPS to call reward and search modules
+
+# apply minimal modifications to DPS to call our reward and search modules
 python integrations/add_inits.py
-git -C integrations/dps/diffusion-posterior-sampling apply ../modifications.patch
+git -C integrations/dps/diffusion-posterior-sampling apply ../dps_modifications.patch
 ````
 <br />
 
@@ -48,21 +50,19 @@ gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaf
 
 ## Blind-DPS Setup
 
-Clone the required repositories and download pre-trained models:
-
 ```bash
+# clone repositories
 git clone https://github.com/BlindDPS/blind-dps.git integrations/blinddps/blind-dps
 git clone https://github.com/LeviBorodenko/motionblur integrations/blinddps/blind-dps/motionblur
 
+# download pretrained models
 mkdir integrations/blinddps/blind-dps/models
 gdown 1nAhgjU8C6DCkOLmWTuPIzA6PMNkNmE5Z -O integrations/blinddps/blind-dps/models/ffhq_10m.pt
 gdown 11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j -O integrations/blinddps/blind-dps/models/kernel_checkpoint.pt
 
+# apply minimal modifications to BlindDPS to call our reward and search modules
 python integrations/add_inits.py
-cd integrations/blinddps/blind-dps/
-git apply ../blind_dps_modifications.patch
-cd ../../..
-
+git -C integrations/blinddps/blind-dps/ apply ../blind_dps_modifications.patch
 ````
 
 <br />
@@ -72,14 +72,15 @@ cd ../../..
 Clone the required repositories and download pre-trained models:
 
 ```bash
+# clone repositories
 git clone https://github.com/zhangbingliang2019/DAPS.git integrations/daps/DAPS
-conda create -n DAPS python=3.8
-conda activate DAPS
-pip install -r requirements/daps.txt
-conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+
+# download pretrained models
 mkdir integrations/daps/DAPS/checkpoints
 gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/daps/DAPS/checkpoints/ffhq256.pt
-git -C integrations/daps/DAPS apply ../modifications.patch
+
+# apply minimal modifications to DAPS to call our reward and search modules
+git -C integrations/daps/DAPS apply ../daps_modifications.patch
 ````
 
 
