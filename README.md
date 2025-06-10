@@ -3,6 +3,99 @@
 ## Introduction
 This is our paper:)
 
+## Getting Started
+### 1) Clone the repository
+```bash
+git https://github.com/mahdi124710/DISS.git
+cd DISS
+````
+
+### 2) Set up environment
+```bash
+conda create -n DISS python=3.8
+conda activate DISS
+pip install -r requirements.txt
+conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+````
+<br />
+
+### 3) Set up DPS
+```bash
+# clone repositories
+git clone https://github.com/DPS2022/diffusion-posterior-sampling.git integrations/dps/diffusion-posterior-sampling
+git clone https://github.com/VinAIResearch/blur-kernel-space-exploring integrations/dps/diffusion-posterior-sampling/bkse
+git clone https://github.com/LeviBorodenko/motionblur integrations/dps/diffusion-posterior-sampling/motionblur
+# download pretrained models
+mkdir integrations/dps/diffusion-posterior-sampling/models
+gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/dps/diffusion-posterior-sampling/models/ffhq_10m.pt
+gdown 1HAy7P19PckQLczVNXmVF-e_CRxq098uW -O integrations/dps/diffusion-posterior-sampling/models/imagenet256.pt
+# apply minimal modifications to DPS to call reward and search modules
+python integrations/add_inits.py
+git -C integrations/dps/diffusion-posterior-sampling apply ../modifications.patch
+````
+<br />
+
+### 4) Set up AdaFace reward
+```bash
+mkdir third_party
+git clone https://github.com/mk-minchul/AdaFace.git third_party/AdaFace
+mkdir third_party/AdaFace/pretrained
+gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaface_ir50_ms1mv2.ckpt
+````
+<br />
+
+
+
+## Blind-DPS Setup
+
+Clone the required repositories and download pre-trained models:
+
+```bash
+git clone https://github.com/BlindDPS/blind-dps.git integrations/blinddps/blind-dps
+git clone https://github.com/LeviBorodenko/motionblur integrations/blinddps/blind-dps/motionblur
+
+mkdir integrations/blinddps/blind-dps/models
+gdown 1nAhgjU8C6DCkOLmWTuPIzA6PMNkNmE5Z -O integrations/blinddps/blind-dps/models/ffhq_10m.pt
+gdown 11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j -O integrations/blinddps/blind-dps/models/kernel_checkpoint.pt
+
+python integrations/add_inits.py
+cd integrations/blinddps/blind-dps/
+git apply ../blind_dps_modifications.patch
+cd ../../..
+
+````
+
+<br />
+
+## DAPS Setup
+
+Clone the required repositories and download pre-trained models:
+
+```bash
+git clone https://github.com/zhangbingliang2019/DAPS.git integrations/daps/DAPS
+conda create -n DAPS python=3.8
+conda activate DAPS
+pip install -r requirements/daps.txt
+conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+mkdir integrations/daps/DAPS/checkpoints
+gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/daps/DAPS/checkpoints/ffhq256.pt
+git -C integrations/daps/DAPS apply ../modifications.patch
+````
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## DPS Setup
 ### 1) Clone Repositories
 
@@ -93,40 +186,3 @@ mkdir third_party/AdaFace/pretrained
 gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaface_ir50_ms1mv2.ckpt
 ```
 
-## Blind-DPS Setup
-
-Clone the required repositories and download pre-trained models:
-
-```bash
-git clone https://github.com/BlindDPS/blind-dps.git integrations/blinddps/blind-dps
-git clone https://github.com/LeviBorodenko/motionblur integrations/blinddps/blind-dps/motionblur
-
-mkdir integrations/blinddps/blind-dps/models
-gdown 1nAhgjU8C6DCkOLmWTuPIzA6PMNkNmE5Z -O integrations/blinddps/blind-dps/models/ffhq_10m.pt
-gdown 11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j -O integrations/blinddps/blind-dps/models/kernel_checkpoint.pt
-
-python integrations/add_inits.py
-cd integrations/blinddps/blind-dps/
-git apply ../blind_dps_modifications.patch
-cd ../../..
-
-````
-
-<br />
-
-## DAPS Setup
-
-Clone the required repositories and download pre-trained models:
-
-```bash
-git clone https://github.com/zhangbingliang2019/DAPS.git integrations/daps/DAPS
-conda create -n DAPS python=3.8
-conda activate DAPS
-pip install -r requirements/daps.txt
-conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=12.1 -c pytorch -c nvidia
-mkdir integrations/daps/DAPS/checkpoints
-gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/daps/DAPS/checkpoints/ffhq256.pt
-cd integrations/daps/DAPS/
-git apply ../modifications.patch
-cd ../../..
-````
