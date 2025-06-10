@@ -1,0 +1,113 @@
+diff --git a/data.py b/data.py
+index 5f673f4..644208b 100644
+--- a/data.py
++++ b/data.py
+@@ -79,7 +79,7 @@ class ImageDataset(DiffusionData):
+         self.device = device
+ 
+     def __getitem__(self, i):
+-        img = (self.trans(Image.open(self.data[i])) * 2 - 1).to(self.device)
++        img = (self.trans(Image.open(self.data[i]).convert('RGB')) * 2 - 1).to(self.device)
+         if img.shape[0] == 1:
+             img = torch.cat([img] * 3, dim=0)
+         return img
+diff --git a/forward_operator/__init__.py b/forward_operator/__init__.py
+index b52f739..1e37f93 100644
+--- a/forward_operator/__init__.py
++++ b/forward_operator/__init__.py
+@@ -61,7 +61,7 @@ class Operator(ABC):
+         """
+         pass
+ 
+-    def measure(self, x):
++    def measure(self, x, input_sigma=None):
+         """
+         Measures input data by applying the operator and adding Gaussian noise.
+ 
+@@ -72,7 +72,8 @@ class Operator(ABC):
+             torch.Tensor: Noisy measurement result.
+         """
+         y0 = self(x)
+-        return y0 + self.sigma * torch.randn_like(y0)
++        s = input_sigma if input_sigma is not None else self.sigma
++        return y0 + s * torch.randn_like(y0)
+ 
+     def loss(self, x, y):
+         """
+@@ -137,6 +138,7 @@ def random_sq_bbox(img, mask_shape, image_size=256, margin=(16, 16)):
+     # bb
+     t = np.random.randint(margin_height, maxt)
+     l = np.random.randint(margin_width, maxl)
++    t, l = 150 - 16, 100 - 16
+ 
+     # make mask
+     mask = torch.ones([B, C, H, W], device=img.device)
+@@ -404,4 +406,3 @@ class LatentWrapper(Operator):
+             return pred_grad, loss
+         else:
+             return pred_grad
+-        
+\ No newline at end of file
+diff --git a/sampler.py b/sampler.py
+index 0e0d1bf..b3e0315 100644
+--- a/sampler.py
++++ b/sampler.py
+@@ -39,7 +39,8 @@ class DAPS(nn.Module):
+         self.diffusion_scheduler_config = diffusion_scheduler_config
+         self.mcmc_sampler = MCMCSampler(**mcmc_sampler_config)
+ 
+-    def sample(self, model, x_start, operator, measurement, evaluator=None, record=False, verbose=False, **kwargs):
++    def sample(self, model, x_start, operator, measurement, search_rewards, gradient_rewards, search, evaluator=None,
++               record=False, verbose=False, **kwargs):
+         """
+         Performs sampling using the DAPS method.
+ 
+@@ -69,12 +70,34 @@ class DAPS(nn.Module):
+                 sampler = DiffusionPFODE(model, diffusion_scheduler, solver='euler')
+                 x0hat = sampler.sample(xt)
+ 
++            # Find the rewards and do the search
++            rewards = torch.zeros(x0hat.shape[0], device=x0hat.device)
++            for reward in search_rewards:
++                with torch.no_grad():
++                    rew = reward.get_reward(x0hat, measurements=measurement)
++                rewards += rew
++
++            if search_rewards:  # if search rewards is empty we shouldn't do any search
++                resampled_idx = search.search(rewards, step)
++                print('resampled idxs: ', resampled_idx, flush=True)
++                xt = xt[resampled_idx]
++                x0hat = x0hat[resampled_idx]
++
+             # 2. MCMC update
+             x0y = self.mcmc_sampler.sample(xt, model, x0hat, operator, measurement, sigma, step / self.annealing_scheduler.num_steps)
+ 
+             # 3. forward diffusion
+             if step != self.annealing_scheduler.num_steps - 1:
+                 xt = x0y + torch.randn_like(x0y) * self.annealing_scheduler.sigma_steps[step + 1]
++                for reward in gradient_rewards:
++                    grad = reward.get_gradients(x0y)  # [B, C, H, W]
++                    grad_flat = grad.view(grad.shape[0], -1)  # [B, C*H*W]
++                    grad_norm = torch.norm(grad_flat, dim=1)  # [B]
++                    eps = 1e-8
++                    scale = reward.scale / (grad_norm + eps)  # [B]
++                    scale = scale.view(-1, 1, 1, 1)  # [B,1,1,1]
++                    xt = xt - scale * self.annealing_scheduler.sigma_steps[step + 1] * grad
++
+             else:
+                 xt = x0y
+ 
+@@ -95,7 +118,7 @@ class DAPS(nn.Module):
+                     })
+             if record:
+                 self._record(xt, x0y, x0hat, sigma, x0hat_results, x0y_results)
+-        return xt
++        return xt.clamp(-1, 1)
+ 
+     def _record(self, xt, x0y, x0hat, sigma, x0hat_results, x0y_results):
+         """Records the intermediate states during sampling."""
+@@ -205,4 +228,3 @@ class LatentDAPS(DAPS):
+             if record:
+                 self._record(xt, x0y, x0hat, sigma, x0hat_results, x0y_results)
+         return xt
+-

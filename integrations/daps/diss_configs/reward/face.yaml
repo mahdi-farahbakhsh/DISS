@@ -1,0 +1,13 @@
+rewards:
+  - name: adaface
+    steering: [search]
+    data_path: '../../data/additional_images'
+    scale: 13
+
+search_algorithm:
+  name: group-meeting
+  base: 1
+  min_group: 8
+  max_group: 8
+
+num_particles: 8

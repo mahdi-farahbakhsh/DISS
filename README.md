@@ -95,9 +95,7 @@ gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaf
 
 ## Blind-DPS Setup
 
-### 1) Clone Repositories
-
-Clone the required repositories:
+Clone the required repositories and download pre-trained models:
 
 ```bash
 git clone https://github.com/BlindDPS/blind-dps.git integrations/blinddps/blind-dps
@@ -112,5 +110,23 @@ cd integrations/blinddps/blind-dps/
 git apply ../blind_dps_modifications.patch
 cd ../../..
 
+````
 
+<br />
+
+## DAPS Setup
+
+Clone the required repositories and download pre-trained models:
+
+```bash
+git clone https://github.com/zhangbingliang2019/DAPS.git integrations/daps/DAPS
+conda create -n DAPS python=3.8
+conda activate DAPS
+pip install -r requirements/daps.txt
+conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+mkdir integrations/daps/DAPS/checkpoints
+gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/daps/DAPS/checkpoints/ffhq256.pt
+cd integrations/daps/DAPS/
+git apply ../modifications.patch
+cd ../../..
 ````
