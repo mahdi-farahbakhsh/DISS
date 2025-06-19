@@ -1,2 +1,0 @@
-- name: genie
-  device: cuda:0

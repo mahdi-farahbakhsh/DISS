@@ -15,9 +15,9 @@ singularity shell /mnt/lab_files/ECEN403-404/containers/cuda_10.2-cudnn7-py36.si
 python run_inverse.py \
                 --model_config=configs/model_config.yaml \
                 --diffusion_config=configs/mpgd_diffusion_search_config.yaml \
-                --task_config=configs/super_resolution_4x_config_full_images.yaml \
+                --task_config=configs/box_inpainting_det_full_images.yaml \
                 --reward_eval_config=configs/reward_adaface.yaml \
-                --search_algo_config=configs/search_group.yaml \
+                --search_algo_config=configs/search_group_recursive_greedy.yaml \
                 --timestep=100 \
                 --scale=4 \
                 --method="mpgd_wo_proj" \
@@ -27,4 +27,4 @@ python run_inverse.py \
                 --num_particles=8 \
                 --batch_size=8 \
                 --resample_rate=8 \
-                --ref_faces_path='./data/additional_images/' \
+                --ref_faces_path='../../data/additional_images/' \

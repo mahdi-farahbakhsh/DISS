@@ -41,7 +41,6 @@ def get_conditioning_method(name: str, operator, noiser, **kwargs):
     if __CONDITIONING_METHOD__.get(name, None) is None:
         raise NameError(f"Name {name} is not defined!")
     return __CONDITIONING_METHOD__[name](operator=operator, noiser=noiser, **kwargs)
-
     
 class ConditioningMethod(ABC):
     def __init__(self, operator, noiser, **kwargs):
@@ -53,16 +52,16 @@ class ConditioningMethod(ABC):
     
     def grad_and_value(self, x_prev, x_0_hat, measurement, **kwargs):
         if self.noiser.__name__ == 'gaussian':
-            print('measurement', measurement.shape)
-            print('x_0_hat', x_0_hat.shape)
+            # print('measurement', measurement.shape)
+            # print('x_0_hat', x_0_hat.shape)
             difference = measurement - self.operator.forward(x_0_hat, **kwargs)
-            print('difference', difference.shape)
+            # print('difference', difference.shape)
             difference_vec = difference.reshape(x_0_hat.shape[0], -1)
-            print('difference_vec', difference_vec.shape)
+            # print('difference_vec', difference_vec.shape)
             norm = torch.linalg.norm(difference_vec, axis=-1)
-            print('norm', norm.shape)
+            # print('norm', norm.shape)
             norm_grad = torch.autograd.grad(outputs=norm.sum(), inputs=x_prev)[0]
-            print('norm_grad', norm_grad.shape)
+            # print('norm_grad', norm_grad.shape)
         
         elif self.noiser.__name__ == 'poisson':
             Ax = self.operator.forward(x_0_hat, **kwargs)
@@ -79,6 +78,7 @@ class ConditioningMethod(ABC):
     @abstractmethod
     def conditioning(self, x_t, measurement, noisy_measurement=None, **kwargs):
         pass
+
     
 @register_conditioning_method(name='vanilla')
 class Identity(ConditioningMethod):

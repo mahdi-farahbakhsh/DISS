@@ -43,23 +43,23 @@ class Search(ABC):
  
         self.num_particles = num_particles
         self.num_steps = num_steps
-        self.num_resample_steps = int(num_steps / resample_rate)
         self.resample_rate = resample_rate
         self.annealing = annealing
+        self.greedy = kwargs.get('greedy', False)
     
         # create an annealing schedule over the number of resample steps
         if self.annealing == 'constant':
             init_temp = kwargs.get('init_temp', 1)
-            self.annealing_schedule = np.ones(self.num_resample_steps) * init_temp
+            self.annealing_schedule = np.ones(self.num_steps) * init_temp
         elif self.annealing == 'linear':
             init_temp = kwargs.get('init_temp', 10)
             final_temp = kwargs.get('final_temp', 0.1)
-            self.annealing_schedule = np.linspace(init_temp, final_temp, self.num_resample_steps)
+            self.annealing_schedule = np.linspace(init_temp, final_temp,self.num_steps)
         elif self.annealing == 'exponential':
             init_temp = kwargs.get('init_temp', 10)
             final_temp = kwargs.get('final_temp', 0.1)
             decay_time = kwargs.get('decay_time', 0.3)  # time constant of decay
-            t = np.arange(self.num_resample_steps) / self.num_resample_steps
+            t = np.arange(self.num_steps) / self.num_steps
             self.annealing_schedule = final_temp + (init_temp - final_temp) * np.exp(-t / decay_time)
             
 
@@ -169,8 +169,12 @@ class ResampleSearch(Search):
 
                 print(f"p: {p}")
                 # resample based on values
-                resampled_idxs[i: i + self.num_particles] = np.random.choice(np.arange(i, i + self.num_particles),
+                if not self.greedy:
+                    resampled_idxs[i: i + self.num_particles] = np.random.choice(np.arange(i, i + self.num_particles),
                                                                               p=p, size=self.num_particles, replace=True)
+                else:
+                    print(f"greedy resampling")
+                    resampled_idxs[i: i + self.num_particles] = i + np.argmax(p)
 
             print(f"resampled_idxs: {resampled_idxs}")
             return resampled_idxs
@@ -247,27 +251,74 @@ class GroupMeetingSearch(Search):
 
                 print(f"p: {p}")
                 # resample based on values
-                resampled_idxs[i: i + group_size] = np.random.choice(np.arange(i, i + group_size),
-                                                                              p=p, size=group_size, replace=True)
+                if not self.greedy:
+                    resampled_idxs[i: i + group_size] = np.random.choice(np.arange(i, i + group_size),
+                                                                                p=p, size=group_size, replace=True)
+                else:
+                    print(f"greedy resampling")
+                    resampled_idxs[i: i + group_size] = i + np.argmax(p)  # choose the index with max reward
 
             print(f"resampled_idxs: {resampled_idxs}")
             return resampled_idxs
 
 
-        rewards = rewards.cpu().detach().numpy()
-        normalized_distances = 1 - (rewards - np.min(rewards)) / (np.max(rewards) - np.min(rewards) + 1e-8)
-        scores = np.exp(-self.normalizing_factor * normalized_distances ** 2)
+# recursive version
+@register_search_method('group_recursive')
+class GroupMeetingSearchRecursive(GroupMeetingSearch):
+    def __init__(self, num_particles: int, num_steps: int, resample_rate: int, annealing: str, **kwargs):
+        super().__init__(num_particles, num_steps, resample_rate, annealing, **kwargs)
+        if num_particles & (num_particles - 1):
+            raise ValueError('num_particles must be a power of 2')
 
-        group_size = min(((step // self.base) & -(step // self.base)) * self.min_group, len(scores))
-        selected_idxs = np.zeros(self.num_particles, dtype=int)
+    def search(self, rewards: torch.Tensor, step: int, **kwargs) -> np.ndarray:
 
-        for i in range(0, self.num_particles, group_size):
-            scores[i: i + group_size] = scores[i: i + group_size] / np.sum(scores[i: i + group_size])
-            selected_idxs[i: i + group_size] = np.random.choice(
-                list(range(i, i + group_size)), p=scores[i: i + group_size], size=group_size, replace=True
+        batch_size = rewards.shape[0]
+        resampled_idxs = np.arange(batch_size)
+
+        group_size = kwargs.get('group_size', self.num_particles)
+        resample_rate = kwargs.get('resample_rate', self.resample_rate)
+
+        print(f'group_size: {group_size}, resample_rate: {resample_rate}')
+
+        if group_size == 1 or step == 0:  # do not resample at the first step
+            print('group size is 1 or step is 0 so no resampling')
+            return resampled_idxs
+
+        print(f'step: {step}, resample_rate: {resample_rate}, divides evenly: {step % resample_rate == 0}')
+
+        if step % resample_rate == 0:
+            print('at the right step so resampling')
+            
+            temp = self.annealing_schedule[step // self.resample_rate]
+
+            # print('temp:', temp)
+
+            # normalize the rewards
+            rewards = rewards.cpu().detach().numpy()
+            norm_rewards = np.zeros_like(rewards)
+            values = np.zeros(batch_size)
+            
+            for i in range(0, len(rewards), group_size):
+                norm_rewards[i: i + group_size] = rewards[i: i + group_size] - np.max(rewards[i: i + group_size])
+                values[i: i + group_size] = np.exp(norm_rewards[i: i + group_size] / temp)
+                p = values[i: i + group_size]  / np.sum(values[i: i + group_size])
+                print(f"p: {p}")
+                # resample based on values
+                if not self.greedy:
+                    resampled_idxs[i: i + group_size] = np.random.choice(np.arange(i, i + group_size),
+                                                                                p=p, size=group_size, replace=True)
+                else:
+                    print(f"greedy resampling")
+                    resampled_idxs[i: i + group_size] = i + np.argmax(p)  # choose the index with max reward
+            print(f"resampled_idxs: {resampled_idxs}")
+            return resampled_idxs
+            
+        else:
+            print('recursive call')
+            return self.search(
+                rewards=rewards, step=step, group_size=group_size // 2, resample_rate=resample_rate // 2
             )
-        return selected_idxs.astype(int)
-
+            
 
 # # prev version
 # @register_search_method('group-meeting')

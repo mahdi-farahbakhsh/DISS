@@ -1,6 +1,0 @@
-name: resample
-num_particles: 2
-num_steps: 100
-resample_rate: 1  # per steps
-annealing: constant
-init_temp: 0.5

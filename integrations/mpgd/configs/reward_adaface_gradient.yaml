@@ -1,5 +1,0 @@
-- name: adaface
-  scale: 1
-  device: cuda:0
-  gradient: True
-  gradient_scale: 1

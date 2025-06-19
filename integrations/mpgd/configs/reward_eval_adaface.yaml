@@ -1,3 +1,0 @@
-name: adaface
-device: cuda:0
-pretrained_model: 'ir_50'

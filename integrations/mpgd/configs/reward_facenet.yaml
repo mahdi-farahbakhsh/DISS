@@ -1,3 +1,0 @@
-- name: facenet
-  device: cuda:0
-  scale: 1

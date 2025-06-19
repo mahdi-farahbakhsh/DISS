@@ -17,7 +17,7 @@ from guided_diffusion.unet import create_model
 from guided_diffusion.batched_si_guided_diffusion import create_sampler  # changed to search guided gaussian diffusion
 
 
-from data.dataloader import get_dataset, get_dataloader
+from dataloader import get_dataset, get_dataloader
 from util.img_utils import clear_color, mask_generator
 from util.logger import get_logger
 import torchvision
@@ -66,7 +66,7 @@ def main():
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--search_algo_config', type=str, default='./configs/search_resample.yaml')
     parser.add_argument('--reward_eval_config', type=str, default='./configs/rewards_adaface_measurement.yaml')
-    parser.add_argument('--ref_faces_path', type=str, default='./data/ref-face-images/')
+    parser.add_argument('--ref_faces_path', type=str, default='../../data/additional_images/')
 
     # additional args for lookahead 
     parser.add_argument('--best_of_n', action='store_true', help='Pick out the best of n samples')
