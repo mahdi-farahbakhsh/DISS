@@ -470,9 +470,6 @@ class DDIMx0(SpacedDiffusion):
         device = x_start.device
         model.eval()
 
-        search = kwargs['search']
-        search_rewards = kwargs['search_rewards']
-
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
     
         for idx in pbar:
@@ -500,19 +497,18 @@ class DDIMx0(SpacedDiffusion):
 
             if 'search' in kwargs:
                 search, search_rewards = kwargs['search'], kwargs['search_rewards']
-                step = search.start_step - t.item()
+                step = search.start_step - idx
                 if search_rewards and step % search.base == 0 and step > 0:
-                    x0hat = out['pred_xstart']
-                    #x0_hat = self._ddim_x0(model, x_t=x, t=t, steps=5)
-                rewards = torch.zeros(x0hat.shape[0], device=x0hat.device)
-                for search_reward in search_rewards:
-                    with torch.no_grad():
-                        rew = search_reward.get_reward(x0hat)
-                    rewards += rew
-                resampled_idxs = search.search(rewards, step)
-
-                x_0_hat = x_0_hat[resampled_idxs]  # resample idxs  clone the x_0_hat
-                eps = eps[resampled_idxs]  # resample idxs clone the eps
+                    rewards = torch.zeros(x_0_hat.shape[0], device=x_0_hat.device)
+                    for search_reward in search_rewards:
+                        with torch.no_grad():
+                            rew = search_reward.get_reward(x_0_hat)
+                        rewards += rew
+                    resampled_idxs = search.search(rewards, step)
+                    print('resampled_indices: ', resampled_idxs, flush=True)
+                    # resample the x_0_hat and eps
+                    x_0_hat = x_0_hat[resampled_idxs]  # resample idxs  clone the x_0_hat
+                    eps = eps[resampled_idxs]  # resample idxs clone the eps
 
 
             with torch.enable_grad():
@@ -522,13 +518,16 @@ class DDIMx0(SpacedDiffusion):
                                         at=alpha_bar_prev,
                                         t=t/self.num_timesteps)
 
-                # take gradient wrt the gradient rewards if any
-                for gradient_reward in gradient_rewards:
-                    if (forward_step > 0.3 * self.num_timesteps and forward_step < 0.7 * self.num_timesteps):  # take gradients only in the middle
-                        print('taking gradients')
-                        grad = gradient_reward.get_gradients(x_0_hat)  # compute gradient wrt x0_hat not x0_t/y
-                        x0_t = x0_t + cond_scale * gradient_reward.scale * grad / alpha_bar_prev.sqrt()
-                    x0_t.detach()
+                if 'gradient_rewards' in kwargs:
+                    gradient_rewards = kwargs['gradient_rewards']
+
+                    # take gradient wrt the gradient rewards if any
+                    for gradient_reward in gradient_rewards:
+                        if (forward_step > 0.3 * self.num_timesteps and forward_step < 0.7 * self.num_timesteps):  # take gradients only in the middle
+                            print('taking gradients')
+                            grad = gradient_reward.get_gradients(x_0_hat)  # compute gradient wrt x0_hat not x0_t/y
+                            x0_t = x0_t + cond_scale * gradient_reward.scale * grad / alpha_bar_prev.sqrt()
+                        x0_t.detach()
 
             
             out["pred_xstart"] = x0_t
@@ -541,9 +540,8 @@ class DDIMx0(SpacedDiffusion):
             )
             
             img = mean_pred
-            if use_sigma:
-                noise = torch.randn_like(x)
-            if (t != 0).all() and use_sigma:
+            noise = torch.randn_like(x)
+            if (t != 0).all():
                 img += sigma * noise
             img = img.detach_()
            
@@ -555,37 +553,35 @@ class DDIMx0(SpacedDiffusion):
                 if idx % 20 == 0:
                     file_path = os.path.join(save_root, f"progress/x_{str(idx).zfill(4)}.png")
                     plt.imsave(file_path, clear_color(img[0].unsqueeze(0)))
-
-    
         
-        if reward_eval is not None:  # find the best image within the group
-            final_rewards = 0
-            for reward_name, reward in reward_eval.items():
-                if hasattr(reward, 'get_reward'):
-                    curr_reward = reward.get_reward(x=img) / reward.scale
-                    final_rewards += curr_reward
+        # if reward_eval is not None:  # find the best image within the group
+        #     final_rewards = 0
+        #     for reward_name, reward in reward_eval.items():
+        #         if hasattr(reward, 'get_reward'):
+        #             curr_reward = reward.get_reward(x=img) / reward.scale
+        #             final_rewards += curr_reward
 
-            # num_particles = search_algo.num_particles if search_algo is not None else 1
-            num_groups = img.shape[0] // num_particles
-            print('num_groups: ', num_groups)
-            print('num_particles: ', num_particles)
+        #     # num_particles = search_algo.num_particles if search_algo is not None else 1
+        #     num_groups = img.shape[0] // num_particles
+        #     print('num_groups: ', num_groups)
+        #     print('num_particles: ', num_particles)
 
-            C, H, W = img.shape[1], img.shape[2], img.shape[3]
+        #     C, H, W = img.shape[1], img.shape[2], img.shape[3]
             
-            img = img.reshape(num_groups, num_particles, C, H, W)
-            final_rewards = final_rewards.reshape(num_groups, num_particles)
-            print('reshaped img: ', img.shape)
-            print('final_rewards: ', final_rewards.shape)
-            best_img = torch.zeros(num_groups, C, H, W).to(device)
+        #     img = img.reshape(num_groups, num_particles, C, H, W)
+        #     final_rewards = final_rewards.reshape(num_groups, num_particles)
+        #     print('reshaped img: ', img.shape)
+        #     print('final_rewards: ', final_rewards.shape)
+        #     best_img = torch.zeros(num_groups, C, H, W).to(device)
 
-            for n in range(num_groups):
-                best_idx = final_rewards[n].argmax()
-                best_img[n] = img[n][best_idx]
+        #     for n in range(num_groups):
+        #         best_idx = final_rewards[n].argmax()
+        #         best_img[n] = img[n][best_idx]
 
-            print('best_img: ', best_img.shape)
+        #     print('best_img: ', best_img.shape)
 
-            return img, best_img 
-        return img, img 
+        #     return img, best_img 
+        return img 
     
 
     def predict_eps_from_x_start(self, x_t, t, pred_xstart):

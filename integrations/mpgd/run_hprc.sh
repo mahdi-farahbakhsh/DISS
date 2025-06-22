@@ -15,6 +15,7 @@ module load WebProxy
 
 source activate mpgd
 
+export PYTHONPATH=../../../DISS/third_party/AdaFace
 
 python run_inverse_diss.py \
         --model_config=diss_configs/model_config.yaml \
@@ -24,9 +25,4 @@ python run_inverse_diss.py \
         --scale=4 \
         --method="mpgd_wo_proj" \
         --save_dir='./outputs_test_mpgd_corrected/' \
-        --n_images=70 \
-        --temp=0.05  \
-        --resample_rate=8 \
-        --num_particles=8 \
-        --batch_size=8 \
-        --ref_faces_path='../../data/additional_images/' 
+        --n_images=3 \

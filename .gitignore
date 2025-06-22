@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *.so
 
+outputs*/
+mpgd_standalone*/
+AdaFace*/
+logs*/
+
 # Virtual environments
 .env
 .venv/

@@ -19,14 +19,14 @@ def compute_lpips(x: torch.Tensor, gt: torch.Tensor, device='cuda') -> torch.Ten
 
 
 def compute_psnr(x: torch.Tensor, gt: torch.Tensor, data_range: float = 1.0) -> torch.Tensor:
-    x_rescaled = (x + 1) / 2  # [-1,1] → [0,1]
+    x_rescaled = torch.clamp((x + 1) / 2, 0, 1)  # [-1,1] → [0,1]
     gt_rescaled = (gt + 1) / 2
     scores = piq.psnr(x_rescaled, gt_rescaled, data_range=data_range, reduction='none')
     return scores
 
 
 def compute_ssim(x: torch.Tensor, gt: torch.Tensor, data_range: float = 1.0) -> torch.Tensor:
-    x_rescaled = (x + 1) / 2  # [-1,1] → [0,1]
+    x_rescaled = torch.clamp((x + 1) / 2, 0, 1) # [-1,1] → [0,1]
     gt_rescaled = (gt + 1) / 2
     scores = piq.ssim(x_rescaled, gt_rescaled, data_range=data_range, reduction='none')
     return scores

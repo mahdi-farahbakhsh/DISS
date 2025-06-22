@@ -2,9 +2,10 @@ from functools import partial
 import os
 import argparse
 import yaml
+import sys
 
-# from search_algo import get_search_algo
-# from reward_eval import get_reward_eval
+# Add parent directory to Python path to import diss_modules
+sys.path.append('../../')
 
 from diss_modules.reward import get_reward_method
 from diss_modules.search import get_search_method
@@ -63,6 +64,8 @@ def main():
     parser.add_argument('--save_dir', type=str, default='./outputs/ffhq/')
     parser.add_argument('--eval_fn_list', type=str, nargs='+', default=['psnr', 'ssim', 'lpips', 'facenet_l2', 'adaface_l2'])
     parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--n_images', type=int, default=1)
+
     # parser.add_argument('--search_algo_config', type=str, default='./diss_configs/search_resample.yaml')
     # parser.add_argument('--reward_eval_config', type=str, default='./diss_configs/rewards_adaface_measurement.yaml')
     # parser.add_argument('--ref_faces_path', type=str, default='../../data/additional_images/')
@@ -84,6 +87,11 @@ def main():
     # parser.add_argument('--gradient_scale', type=float, default=1.0)
 
     args = parser.parse_args()
+
+    # # Load model
+    # # Save current working directory
+    # original_dir = os.getcwd()
+    # os.chdir('DISS/integrations/mpgd')
    
     # logger
     logger = get_logger()
@@ -100,7 +108,7 @@ def main():
     model_config = load_yaml(args.model_config)
     diffusion_config = load_yaml(args.diffusion_config)
     task_config = load_yaml(args.task_config)
-    search_algo_config = load_yaml(args.search_algo_config)    
+    # search_algo_config = load_yaml(args.search_algo_config)    
     
     if args.timestep < 1000:
         diffusion_config["timestep_respacing"] = f"ddim{args.timestep}"
@@ -133,7 +141,7 @@ def main():
    
     # Load diffusion sampler
     sampler = create_sampler(**diffusion_config) 
-    sample_fn = partial(sampler.p_sample_loop, model=model, measurement_cond_fn=measurement_cond_fn, num_lookahead_steps=args.num_lookahead_steps)
+    sample_fn = partial(sampler.p_sample_loop, model=model, measurement_cond_fn=measurement_cond_fn)
 
 
     # get rewards:
@@ -154,6 +162,8 @@ def main():
     batch_size = num_particles if num_particles <= MAX_BATCH_SIZE else MAX_BATCH_SIZE
     search = get_search_method(num_particles=batch_size, **task_config['search_algorithm']) if search_rewards else None
 
+    print(f'batch size: {batch_size}')
+
     # print(f"Search algorithm: {search_algo_config['name']}")
 
     # reward_configs = load_yaml(args.reward_eval_config)
@@ -172,39 +182,31 @@ def main():
     # search_algo = get_search_algo(**search_algo_config)  # fixed
     # num_particles = search_algo_config['num_particles']
 
-    if args.best_of_n:
-        search_algo = None  # disable search algorithm 
+    # if args.best_of_n:
+    #     search_algo = None  # disable search algorithm 
    
     # Working directory
     import datetime
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     dir_path = f"{timestamp}_{diffusion_config['timestep_respacing']}_eta{args.eta}_scale{args.scale}"
 
-    if args.best_of_n:
-        dir_path += f"_best_of_n_{num_particles}"
-    else:
-        dir_path += f"_{search_algo_config['name']}_n_{num_particles}"
+    # if args.best_of_n:
+    #     dir_path += f"_best_of_n_{num_particles}"
+    # else:
+    #     dir_path += f"_{search_algo_config['name']}_n_{num_particles}"
 
-    if args.perform_lookahead:
-        if args.conditional_lookahead:
-            dir_path += f"_cla_{args.num_lookahead_steps}"
-        else:
-            dir_path += f"_uncla_{args.num_lookahead_steps}"
 
-    if args.jump_la:
-        dir_path += f"_jumpla_{args.jump_size}"
+    # if search_algo is not None:
+    #     dir_path += f"_temp_{search_algo_config['init_temp']}"
+    #     dir_path += f"_resample_rate_{search_algo_config['resample_rate']}"
 
-    if search_algo is not None:
-        dir_path += f"_temp_{search_algo_config['init_temp']}"
-        dir_path += f"_resample_rate_{search_algo_config['resample_rate']}"
-
-    for reward_name, reward in reward_eval.items():
+    # for reward_name, reward in reward_eval.items():
         
-        dir_path += f"_{reward_name}"
-        if reward.gradient:
-            dir_path += f"_grad_{reward.gradient_scale}"
-        if search_algo is not None:
-            dir_path += f"_search"
+    #     dir_path += f"_{reward_name}"
+    #     if reward.gradient:
+    #         dir_path += f"_grad_{reward.gradient_scale}"
+    #     if search_algo is not None:
+    #         dir_path += f"_search"
 
 
     task_name = measure_config['operator']['name']
@@ -230,20 +232,20 @@ def main():
     #        **measure_config['mask_opt']
     #     )
 
-    from eval import get_eval_fn, Evaluator
+    from diss_modules.eval import get_evaluation_table_string, build_tables
 
-    # get evaluator
-    eval_fn_list = []
-    for eval_fn_name in args.eval_fn_list:
-        eval_fn_list.append(get_eval_fn(eval_fn_name))
-    evaluator = Evaluator(eval_fn_list)
+    # # get evaluator
+    # eval_fn_list = []
+    # for eval_fn_name in args.eval_fn_list:
+    #     eval_fn_list.append(get_eval_fn(eval_fn_name))
+    # evaluator = Evaluator(eval_fn_list)
 
     img_size = 256
-    transform = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
-            transforms.ToTensor(),
-            transforms.Lambda(lambda t: (t * 2) - 1)
-        ])
+    # transform = transforms.Compose([
+    #         transforms.Resize((img_size, img_size)),
+    #         transforms.ToTensor(),
+    #         transforms.Lambda(lambda t: (t * 2) - 1)
+    #     ])
 
     # from glob import glob
 
@@ -258,7 +260,7 @@ def main():
     samples = []
     best_samples = []
 
-    print(f'batch size: {args.batch_size}')
+    # print(f'batch size: {args.batch_size}')
     print(f'num particles: {num_particles}')
     print(f'n_images: {n_images}')
 
@@ -271,21 +273,22 @@ def main():
     for arg, value in vars(args).items():
         markdown_table += f'- **{arg}**: {value} \n '
 
-    # print reward eval configs
-    markdown_table += f' \n reward eval configs: \n \n'
-    for reward_config in reward_configs:
-        markdown_table += f'- **{reward_config["name"]}**: \n'
-        for key, value in reward_config.items():
-            if key != 'name':
-                markdown_table += f'  - {key}: {value} \n'
-    markdown_table += f' \n \n'
-    # print search algo configs
-    markdown_table += f' \n search algo configs: \n \n'
-    for key, value in search_algo_config.items():
-        markdown_table += f'- **{key}**: {value} \n'
-    markdown_table += f' \n \n'
+    # # print reward eval configs
+    # markdown_table += f' \n reward eval configs: \n \n'
+    # for reward_config in reward_configs:
+    #     markdown_table += f'- **{reward_config["name"]}**: \n'
+    #     for key, value in reward_config.items():
+    #         if key != 'name':
+    #             markdown_table += f'  - {key}: {value} \n'
+    # markdown_table += f' \n \n'
+    # # print search algo configs
+    # markdown_table += f' \n search algo configs: \n \n'
+    # for key, value in search_algo_config.items():
+    #     markdown_table += f'- **{key}**: {value} \n'
+    # markdown_table += f' \n \n'
 
-    avg = {}
+    all_tables = []
+    num_runs = 1
         
     # Do Inference
     for i, ref_img in enumerate(loader):
@@ -305,26 +308,27 @@ def main():
         # if i >= n_images:
         #     break
         # logger.info(f"Inference for image {i}")
-        # fname = f'{i:03}.png'
-        # ref_img = ref_img.to(device)
+        fname = f'{i:03}'
+
+        ref_img = ref_img.to(device)
 
         print(f'ref_img shape: {ref_img.shape}')
-        print(f'ref_face_img shape: {ref_face_img.shape}')
+        # print(f'ref_face_img shape: {ref_face_img.shape}')
 
         # Forward measurement model (Ax + n)
         y = operator.forward(ref_img)
         y_n = noiser(y)
 
         # Sampling
-        x_start = torch.randn((args.batch_size, 3, img_size, img_size), device=device).requires_grad_()
+        x_start = torch.randn((batch_size, 3, img_size, img_size), device=device).requires_grad_()
         print(f"x_start shape: {x_start.shape}")
 
         plt.imsave(os.path.join(out_path, 'input', f'{i:03}_input.png'), clear_color(y_n))
         plt.imsave(os.path.join(out_path, 'label', f'{i:03}_label.png'), clear_color(ref_img))
-        plt.imsave(os.path.join(out_path, 'guid', f'{i:03}_guid.png'), clear_color(ref_face_img))
+        # plt.imsave(os.path.join(out_path, 'guid', f'{i:03}_guid.png'), clear_color(ref_face_img))
 
 
-        sample, best_sample = sample_fn(x_start=x_start,
+        sample = sample_fn(x_start=x_start,
                            measurement=y_n, 
                            record=False, 
                            save_root=out_path, 
@@ -334,48 +338,31 @@ def main():
                            search=search
                         )
 
+        for particle in range(batch_size):
+            plt.imsave(
+                os.path.join(out_path, 'recon', 'img_' + fname + '_' + str(particle + batch_size) + '.png'),
+                clear_color(sample[particle].unsqueeze(0))
+            )
+            print(f'saved {particle}th particle')
 
-        print(f"sample shape: {sample.shape}")  # (num_groups, num_particles, 3, img_size, img_size)
-        print(f"best_sample shape: {best_sample.shape}")
-        # save the best sample
 
-        # plt.imsave(os.path.join(out_path, 'recon', f'{i:03}_best_recon.png'), clear_color(best_sample))
-        
-        for n, sample_n in enumerate(sample):
-            for j in range(num_particles):
-                # plt.imsave(os.path.join(out_path, 'progress', f'{i:03}_progress_{j}.png'), clear_color(sample_n[j].unsqueeze(0)))
-                plt.imsave(os.path.join(out_path, 'recon', f'{i:03}_group_{n}_recon_{j}.png'), clear_color(sample_n[j].unsqueeze(0)))
-            # save the best sample
-            plt.imsave(os.path.join(out_path, 'recon', f'{i:03}_group_{n}_best_recon.png'), clear_color(best_sample[n].unsqueeze(0)))
-
-        images_expanded = ref_img.expand_as(best_sample)  # num_groups, 3, img_size, img_size
-
-        markdown_table += f' \n \n \n **image {i}**: \n'
-        best_results = evaluator.report(images_expanded, y, best_sample)  # save only the best samples and the best images
-        best_markdown_text, summary_metrics = evaluator.display(best_results)    
-        markdown_table += '\n \n \n best results \n' + best_markdown_text
-
-        for key, value in summary_metrics.items():
-            print('key:', key)
-            print('value:', value)
-            if key not in avg:
-                avg[key] = []
-            avg[key].append(float(value))
-
-        import json
-        # log the evaluation metrics
-        eval_file_path = os.path.join(out_path, 'metrics_md', f'img_{i}.md')
-        with open(eval_file_path, 'w') as file:
-            file.write(markdown_table)
-        json.dump(summary_metrics, open(os.path.join(out_path, 'metrics_json', f'img_{i}.json'), 'w'), indent=4)
-
+        logger.info('')
+        table = get_evaluation_table_string(sample, ref_img.repeat(batch_size, 1, 1, 1))
+        all_tables.append(table)
+        print(table)
     
-    # calculate the average of each key
-    for key, value in avg.items():
-        avg[key] = sum(value) / len(value)
+    print()
+    for idx, table in enumerate(all_tables):
+        print(f'results for image {idx // num_runs} and run {idx - (idx // num_runs) * num_runs}')
+        print(table)
+        print()
 
-    with open(os.path.join(out_path, 'metrics_json', 'avg_metrics.json'), 'w') as f:
-        json.dump(avg, f, indent=4)
+    t1, t2, t3 = build_tables(all_tables, search.max_group, num_particles)
+    print(t1, '\n\n', t2, '\n\n', t3)
+
+    print()
+    print('saved in ', out_path)
+
 
     # images = torch.cat(images, dim=0)  # n_images, 3, img_size, img_size
     # samples = torch.cat(samples, dim=0)  # n_images, num_groups, num_particles, 3, img_size, img_size
