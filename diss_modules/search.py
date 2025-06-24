@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from email.headerregistry import Group
+
 import numpy as np
 import math
 import torch
@@ -28,12 +30,9 @@ class Search(ABC):
 
     Subclasses must implement the `search` method to define how particle indices
     are selected based on reward values at each step.
-
-    Args:
-        num_particles (int): Number of particles to manage.
     """
-    def __init__(self, num_particles: int, **kwargs):
-        self.num_particles = num_particles
+    def __init__(self, **kwargs):
+        pass
 
     @abstractmethod
     def search(self, rewards: torch.Tensor, step: int, **kwargs) -> np.ndarray:
@@ -72,7 +71,8 @@ class GroupMeetingSearch(Search):
             base (int): Base frequency at which resampling groups increase in size.
             min_group (int): Minimum size of each group.
         """
-        super().__init__(num_particles)
+        super().__init__()
+        self.num_particles = num_particles
         if num_particles & (num_particles - 1):
             raise ValueError('num_particles must be a power of 2')
         self.base = base
@@ -177,3 +177,39 @@ class GroupMeetingSearch(Search):
                 raise ValueError(f"Unknown mode: {mode!r}")
         return np.array(all_selected, dtype=int)
 
+
+@register_search_method('best-of-n')
+class BestOfN(GroupMeetingSearch):
+    def __init__(self, num_particles: int):
+        super().__init__(
+            num_particles=num_particles,
+            base=1e6,
+            min_group=num_particles,
+            max_group=num_particles,
+            start_step=1,
+            normalizing_factor=100
+        )
+
+@register_search_method('global')
+class GlobalSearch(GroupMeetingSearch):
+    def __init__(self, num_particles: int, base: int, start_step=960, normalizing_factor=100):
+        super().__init__(
+            num_particles=num_particles,
+            base=base,
+            min_group=num_particles,
+            max_group=num_particles,
+            start_step=start_step,
+            normalizing_factor=normalizing_factor
+        )
+
+@register_search_method('diverse-beam-search')
+class DiverseBeamSearch(GroupMeetingSearch):
+    def __init__(self, num_particles: int, g: int, base: int, start_step = 960, normalizing_factor=100):
+        super().__init__(
+            num_particles=num_particles,
+            base=base,
+            min_group=g,
+            max_group=g,
+            start_step=start_step,
+            normalizing_factor=normalizing_factor
+        )

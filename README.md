@@ -48,7 +48,7 @@ gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaf
 
 
 
-## Blind-DPS Setup
+### 5) Blind-DPS Setup
 
 ```bash
 # clone repositories
@@ -67,7 +67,7 @@ git -C integrations/blinddps/blind-dps/ apply ../blind_dps_modifications.patch
 
 <br />
 
-## DAPS Setup
+### 6) DAPS Setup
 
 Clone the required repositories and download pre-trained models:
 
