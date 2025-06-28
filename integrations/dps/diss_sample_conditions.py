@@ -1,5 +1,6 @@
 from functools import partial
 import os
+import sys
 import argparse
 import yaml
 
@@ -37,6 +38,7 @@ def main():
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--save_dir', type=str, default='./results')
     parser.add_argument('--path', type=str)
+    parser.add_argument('--n_images', type=int, default=1)
     args = parser.parse_args()
 
     # logger
@@ -140,6 +142,8 @@ def main():
 
     # Do Inference
     for i, ref_img in enumerate(loader):
+        if i >= args.n_images:
+            break
         logger.info(f"Inference for image {i}")
         fname = str(i).zfill(5) + '.png'
         ref_img = ref_img.to(device)

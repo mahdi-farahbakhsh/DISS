@@ -23,9 +23,9 @@ def add_init_files(root_dir):
                 open(init_file, 'a').close()
                 print(f'Created: {init_file}')
 
+
 # List of root directories to scan
 for dir in [
-    'integrations/dps/diffusion-posterior-sampling',
-    'integrations/blinddps/blind-dps'
+    'dps/diffusion-posterior-sampling'
 ]:
     add_init_files(dir)

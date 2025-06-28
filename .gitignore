@@ -7,6 +7,8 @@ outputs*/
 mpgd_standalone*/
 AdaFace*/
 logs*/
+imagenet_data/
+imagenet*/
 
 # Virtual environments
 .env

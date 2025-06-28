@@ -94,7 +94,7 @@ class AdaFaceReward(Reward):
     """
     ADAFACE_PATH = '../../third_party/AdaFace'
 
-    def __init__(self, data_path: str = '../../data/additional_images', pretrained_model: str = 'ir_50',
+    def __init__(self, data_path: str = '../../data/additional_images', pretrained_model: str = 'ir_18',
                  resolution: int = 256, device: str = 'cuda:0', scale=1, **kwargs):
         """
         Initializes the AdaFaceReward class.
@@ -310,7 +310,7 @@ class TextAlignmentReward(Reward):
     Avoid unnecessary words or generic phrases. Use precise and informative language.
     """
 
-    def __init__(self, data_path: str = 'dataset/si_daps/additional_texts', pretrained_model: str = 'ViT-B/32',
+    def __init__(self, data_path: str = '../../data/additional_texts', pretrained_model: str = 'ViT-B/32',
                  resolution: int = 256, device: str = 'cuda:0', scale=1, **kwargs):
         """
         Initializes the AdaFaceReward class.
@@ -390,5 +390,8 @@ class TextAlignmentReward(Reward):
 
         return embeddings
 
+    def get_gradients(self, images: torch.Tensor, **kwargs) -> torch.Tensor:
+        # dummy function for now, change later
+        return self.model.encode_image(images)
 
 

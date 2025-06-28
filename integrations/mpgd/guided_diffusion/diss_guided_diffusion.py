@@ -495,9 +495,11 @@ class DDIMx0(SpacedDiffusion):
             x_0_hat = out['pred_xstart'].detach()
             forward_step = self.num_timesteps - 1 - idx
 
-            if 'search' in kwargs:
+            if 'search' in kwargs and kwargs['search'] is not None:
                 search, search_rewards = kwargs['search'], kwargs['search_rewards']
-                step = search.start_step - idx
+                step = search.start_step - 1 - idx
+                print('search rewards: ', search_rewards, flush=True)
+                print('step (=start_step-1-idx) = forward_step?: ', forward_step==step, flush=True)
                 if search_rewards and step % search.base == 0 and step > 0:
                     rewards = torch.zeros(x_0_hat.shape[0], device=x_0_hat.device)
                     for search_reward in search_rewards:
@@ -526,7 +528,7 @@ class DDIMx0(SpacedDiffusion):
                         if (forward_step > 0.3 * self.num_timesteps and forward_step < 0.7 * self.num_timesteps):  # take gradients only in the middle
                             print('taking gradients')
                             grad = gradient_reward.get_gradients(x_0_hat)  # compute gradient wrt x0_hat not x0_t/y
-                            x0_t = x0_t + cond_scale * gradient_reward.scale * grad / alpha_bar_prev.sqrt()
+                            x0_t = x0_t - cond_scale * gradient_reward.scale * grad / alpha_bar_prev.sqrt()
                         x0_t.detach()
 
             
@@ -554,33 +556,6 @@ class DDIMx0(SpacedDiffusion):
                     file_path = os.path.join(save_root, f"progress/x_{str(idx).zfill(4)}.png")
                     plt.imsave(file_path, clear_color(img[0].unsqueeze(0)))
         
-        # if reward_eval is not None:  # find the best image within the group
-        #     final_rewards = 0
-        #     for reward_name, reward in reward_eval.items():
-        #         if hasattr(reward, 'get_reward'):
-        #             curr_reward = reward.get_reward(x=img) / reward.scale
-        #             final_rewards += curr_reward
-
-        #     # num_particles = search_algo.num_particles if search_algo is not None else 1
-        #     num_groups = img.shape[0] // num_particles
-        #     print('num_groups: ', num_groups)
-        #     print('num_particles: ', num_particles)
-
-        #     C, H, W = img.shape[1], img.shape[2], img.shape[3]
-            
-        #     img = img.reshape(num_groups, num_particles, C, H, W)
-        #     final_rewards = final_rewards.reshape(num_groups, num_particles)
-        #     print('reshaped img: ', img.shape)
-        #     print('final_rewards: ', final_rewards.shape)
-        #     best_img = torch.zeros(num_groups, C, H, W).to(device)
-
-        #     for n in range(num_groups):
-        #         best_idx = final_rewards[n].argmax()
-        #         best_img[n] = img[n][best_idx]
-
-        #     print('best_img: ', best_img.shape)
-
-        #     return img, best_img 
         return img 
     
 

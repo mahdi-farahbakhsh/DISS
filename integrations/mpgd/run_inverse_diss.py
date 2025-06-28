@@ -66,32 +66,7 @@ def main():
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--n_images', type=int, default=1)
 
-    # parser.add_argument('--search_algo_config', type=str, default='./diss_configs/search_resample.yaml')
-    # parser.add_argument('--reward_eval_config', type=str, default='./diss_configs/rewards_adaface_measurement.yaml')
-    # parser.add_argument('--ref_faces_path', type=str, default='../../data/additional_images/')
-
-    # # additional args for lookahead 
-    # parser.add_argument('--best_of_n', action='store_true', help='Pick out the best of n samples')
-    # parser.add_argument('--num_lookahead_steps', type=int, default=1)
-    # parser.add_argument('--conditional_lookahead', action='store_true')
-    # parser.add_argument('--perform_lookahead', action='store_true')
-    # parser.add_argument('--n_images', type=int, default=1)
-    # parser.add_argument('--temp', type=float, default=1.0)
-    # parser.add_argument('--num_particles', type=int, default=1)
-    # parser.add_argument('--batch_size', type=int, default=8)
-    # parser.add_argument('--resample_rate', type=int, default=4)
-    # parser.add_argument('--record_inside_la', action='store_true', help='Record the lookahead samples')
-    # parser.add_argument('--jump_size', type=int, default=1)
-    # parser.add_argument('--jump_la', action='store_true', help='Use jump lookahead')
-    # parser.add_argument('--end_resample', type=float, default=0.9)
-    # parser.add_argument('--gradient_scale', type=float, default=1.0)
-
     args = parser.parse_args()
-
-    # # Load model
-    # # Save current working directory
-    # original_dir = os.getcwd()
-    # os.chdir('DISS/integrations/mpgd')
    
     # logger
     logger = get_logger()
@@ -107,8 +82,7 @@ def main():
     # Load configurations
     model_config = load_yaml(args.model_config)
     diffusion_config = load_yaml(args.diffusion_config)
-    task_config = load_yaml(args.task_config)
-    # search_algo_config = load_yaml(args.search_algo_config)    
+    task_config = load_yaml(args.task_config)   
     
     if args.timestep < 1000:
         diffusion_config["timestep_respacing"] = f"ddim{args.timestep}"
@@ -164,49 +138,11 @@ def main():
 
     print(f'batch size: {batch_size}')
 
-    # print(f"Search algorithm: {search_algo_config['name']}")
-
-    # reward_configs = load_yaml(args.reward_eval_config)
-    # reward_eval = {}
-    # from reward_eval import get_reward_eval
-    # for reward_config in reward_configs:
-    #     reward = get_reward_eval(**reward_config)
-    #     reward_eval[reward_config['name']] = reward
-    #     reward.gradient_scale = args.gradient_scale  # set the gradient scale for the reward
-    #     print('reward grad scale:', reward.gradient_scale)
-
-    # search_algo_config['num_particles'] = args.num_particles  # change the number of particles
-    # search_algo_config['init_temp'] = args.temp  # change the init temp
-    # search_algo_config['resample_rate'] = args.resample_rate  # change the resample rate
-    # search_algo_config['num_steps'] = args.timestep  # change the number of lookahead steps
-    # search_algo = get_search_algo(**search_algo_config)  # fixed
-    # num_particles = search_algo_config['num_particles']
-
-    # if args.best_of_n:
-    #     search_algo = None  # disable search algorithm 
    
     # Working directory
     import datetime
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     dir_path = f"{timestamp}_{diffusion_config['timestep_respacing']}_eta{args.eta}_scale{args.scale}"
-
-    # if args.best_of_n:
-    #     dir_path += f"_best_of_n_{num_particles}"
-    # else:
-    #     dir_path += f"_{search_algo_config['name']}_n_{num_particles}"
-
-
-    # if search_algo is not None:
-    #     dir_path += f"_temp_{search_algo_config['init_temp']}"
-    #     dir_path += f"_resample_rate_{search_algo_config['resample_rate']}"
-
-    # for reward_name, reward in reward_eval.items():
-        
-    #     dir_path += f"_{reward_name}"
-    #     if reward.gradient:
-    #         dir_path += f"_grad_{reward.gradient_scale}"
-    #     if search_algo is not None:
-    #         dir_path += f"_search"
 
 
     task_name = measure_config['operator']['name']
@@ -226,66 +162,19 @@ def main():
     dataset = get_dataset(**data_config, transforms=transform)
     loader = get_dataloader(dataset, batch_size=1, num_workers=0, train=False)
 
-    # # Exception) In case of inpainting, we need to generate a mask 
-    # if measure_config['operator']['name'] == 'inpainting':
-    #     mask_gen = mask_generator(
-    #        **measure_config['mask_opt']
-    #     )
-
     from diss_modules.eval import get_evaluation_table_string, build_tables
 
-    # # get evaluator
-    # eval_fn_list = []
-    # for eval_fn_name in args.eval_fn_list:
-    #     eval_fn_list.append(get_eval_fn(eval_fn_name))
-    # evaluator = Evaluator(eval_fn_list)
-
     img_size = 256
-    # transform = transforms.Compose([
-    #         transforms.Resize((img_size, img_size)),
-    #         transforms.ToTensor(),
-    #         transforms.Lambda(lambda t: (t * 2) - 1)
-    #     ])
 
-    # from glob import glob
 
-    # ref_faces = sorted(glob(os.path.join(args.ref_faces_path + '/*.png')))
-
-    # extensions = ['*.jpg', '*.JPG', '*.jpeg', '*.JPEG', '*.png', '*.PNG']
-    # ref_faces = [file for ext in extensions for file in Path().rglob(ext)]
-
-    n_images = args.n_images
-
-    images = []
-    samples = []
-    best_samples = []
-
-    # print(f'batch size: {args.batch_size}')
     print(f'num particles: {num_particles}')
-    print(f'n_images: {n_images}')
+    print(f'n_images: {args.n_images}')
 
-
-       # # log metrics
-    # n_uniq_samples = len(samples) // num_particles
 
     # add all the configs to the markdown table
     markdown_table = f'arguments: \n \n'
     for arg, value in vars(args).items():
         markdown_table += f'- **{arg}**: {value} \n '
-
-    # # print reward eval configs
-    # markdown_table += f' \n reward eval configs: \n \n'
-    # for reward_config in reward_configs:
-    #     markdown_table += f'- **{reward_config["name"]}**: \n'
-    #     for key, value in reward_config.items():
-    #         if key != 'name':
-    #             markdown_table += f'  - {key}: {value} \n'
-    # markdown_table += f' \n \n'
-    # # print search algo configs
-    # markdown_table += f' \n search algo configs: \n \n'
-    # for key, value in search_algo_config.items():
-    #     markdown_table += f'- **{key}**: {value} \n'
-    # markdown_table += f' \n \n'
 
     all_tables = []
     num_runs = 1
@@ -297,17 +186,10 @@ def main():
         for reward in search_rewards + gradient_rewards:
             reward.set_side_info(i)
 
-        # ref_face_img = Image.open(ref_faces[i]).convert('RGB')
-
-        # ref_face_img = transform(ref_face_img)
-        # ref_face_img = ref_face_img.to(device)
-        # ref_face_img = ref_face_img.unsqueeze(0)
-
-        # print(f"ref_face_img: {ref_face_img}")
         
-        # if i >= n_images:
-        #     break
-        # logger.info(f"Inference for image {i}")
+        if i >= args.n_images:
+            break
+
         fname = f'{i:03}'
 
         ref_img = ref_img.to(device)
@@ -357,7 +239,11 @@ def main():
         print(table)
         print()
 
-    t1, t2, t3 = build_tables(all_tables, search.max_group, num_particles)
+    if search is None:
+        max_group = MAX_BATCH_SIZE
+    else:
+        max_group = search.max_group
+    t1, t2, t3 = build_tables(all_tables, max_group, num_particles)
     print(t1, '\n\n', t2, '\n\n', t3)
 
     print()

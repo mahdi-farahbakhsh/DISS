@@ -166,7 +166,7 @@ class GroupMeetingSearch(Search):
                 second_idx = start + order[1] if gs > 1 else best_idx
 
                 # how many runner‑up picks?
-                second_count = math.ceil(gs / 8) if gs >= 8 else 0
+                second_count = math.ceil(gs / 8) if gs > 8 else 0
                 first_count = gs - second_count
 
                 # build the list for this group
