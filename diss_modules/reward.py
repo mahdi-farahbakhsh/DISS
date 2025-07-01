@@ -339,6 +339,7 @@ class TextAlignmentReward(Reward):
         self.model, self.preprocess = clip.load("ViT-B/32", device=device)
         self.model.eval()
         self.side_info = None
+        self.normalized_text_embed = None
         self.scale = scale
         self.name = 'text-alignment'
 
@@ -346,9 +347,18 @@ class TextAlignmentReward(Reward):
         self.__channel_sd = torch.tensor([0.26862954, 0.26130258, 0.27577711], device=self.device).view(1, 3, 1, 1)
 
 
-    def get_reward(self, images: torch.Tensor, **kwargs) -> torch.Tensor:
+    def get_reward_norm(self, images: torch.Tensor, **kwargs) -> torch.Tensor:  # older def of get_reward
         embed = self._embeddings(images)
         return - torch.norm(self.side_info - embed, dim=1)
+
+    def get_reward(self, images: torch.Tensor, **kwargs) -> torch.Tensor:  # updated def of get_reward
+        embed = self._embeddings(images)
+        # normalize the embeddings
+        normalized_image_embed = embed / embed.norm(dim=1, keepdim=True)
+        print('shape of normalized_image_embed: ', normalized_image_embed.shape, flush=True)
+        print('shape of normalized_text_embed: ', self.normalized_text_embed.shape, flush=True)
+        # cosine similarity
+        return torch.matmul(normalized_image_embed, self.normalized_text_embed.T)
 
 
     def set_side_info(self, index: int) -> None:
@@ -357,14 +367,18 @@ class TextAlignmentReward(Reward):
         with open(path, 'r', encoding='utf-8') as fp:
             text = fp.read()
 
+        print(f'text at id {index} is: ', text, flush=True)
+
         tokens = clip.tokenize([text]).to(self.device)  # shape: [1, token_len]
 
+        print(f'tokens at id {index} are: ', tokens, flush=True)
+
         num_tokens = (tokens != 0).sum().item()  # Count non-padding tokens
-        print(f"Number of tokens in the text: {num_tokens}")
 
         with torch.no_grad():
             text_feats = self.model.encode_text(tokens)  # shape: [1, D]
         self.side_info = text_feats.detach()
+        self.normalized_text_embed = self.side_info / self.side_info.norm(dim=1, keepdim=True)
         print(30 * '-')
         print('in set_side_info: ')
         print('shape of side_info: ', self.side_info.shape)

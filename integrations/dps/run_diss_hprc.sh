@@ -24,5 +24,5 @@ python3 diss_sample_conditions.py \
     --model_config=diffusion-posterior-sampling/configs/imagenet_model_config.yaml \
     --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
     --task_config=diss_configs/diss_imagenet_super_resolution_config.yaml \
-    --path=check \
-    --n_images=1 \
+    --path=check_dps_4 \
+    --n_images=10 \

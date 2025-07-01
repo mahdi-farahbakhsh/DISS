@@ -9,6 +9,7 @@ AdaFace*/
 logs*/
 imagenet_data/
 imagenet*/
+captions/
 
 # Virtual environments
 .env
