@@ -1,0 +1,31 @@
+conditioning:
+  method: diss_ps
+  params:
+    scale: 0.3
+
+data:
+  name: imagenet
+  root: ../../imagenet_data/top_k_images/
+
+measurement:
+  operator:
+    name: super_resolution
+    in_shape: !!python/tuple [1, 3, 256, 256]
+    scale_factor: 6
+
+  noise:
+    name: gaussian
+    sigma: 0.05
+
+rewards:
+  - name: text-alignment
+    steering: [search]
+    data_path: ../../imagenet_data/top_k_captions/
+
+search_algorithm:
+  name: group-meeting
+  base: 2
+  min_group: 2
+  max_group: 4
+
+num_particles: 4
