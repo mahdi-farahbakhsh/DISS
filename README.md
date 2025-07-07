@@ -43,6 +43,12 @@ mkdir third_party
 git clone https://github.com/mk-minchul/AdaFace.git third_party/AdaFace
 mkdir third_party/AdaFace/pretrained
 gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaface_ir50_ms1mv2.ckpt
+
+
+git clone https://github.com/THUDM/ImageReward.git third_party/ImageReward
+cd third_party/ImageReward
+pip install image-reward
+cd ../..
 ````
 <br />
 

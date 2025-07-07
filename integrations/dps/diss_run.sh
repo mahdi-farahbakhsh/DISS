@@ -20,7 +20,7 @@ source activate DPS_paper
 export PYTHONPATH=diffusion-posterior-sampling:../../../DISS:../../../DISS/third_party/AdaFace
 
 python3 diss_sample_conditions.py \
-    --model_config=diffusion-posterior-sampling/configs/model_config.yaml \
+    --model_config=diffusion-posterior-sampling/configs/imagenet_model_config.yaml \
     --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
     --task_config=diss_configs/diss_inpainting_config.yaml \
-    --path=check
+    --path=s42b8_ImageReward

@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import torch
 import numpy as np
+from absl.logging import flush
+from torch.onnx.symbolic_opset9 import tensor
 from torchvision import transforms
 import inference  # from AdaFace
 from face_alignment import align, mtcnn  # from AdaFace
@@ -10,6 +12,7 @@ import torch.nn.functional as F
 from typing import Tuple, List
 import clip
 import os
+import ImageReward as RM
 
 __REWARD_METHOD__ = {}
 
@@ -290,7 +293,7 @@ class MeasurementReward(Reward):
     def set_side_info(self, index: int, **kwargs):
         pass
 
-
+'''
 @register_reward_method('text-alignment')
 class TextAlignmentReward(Reward):
     """prompt:
@@ -301,13 +304,36 @@ class TextAlignmentReward(Reward):
     Optimized to help reconstruct the original image from a degraded version (e.g., blurred, downsampled, or partially masked).
     Aligned with how the CLIP model would interpret the image and caption together.
     ⚠️ Important:
-    Do not describe what is already obvious from a degraded image (e.g., color of large objects, general layout).
-    Do describe things that may be lost in degradation, such as:
-    Fine-grained object details
-    Small or subtle elements (e.g., the brand of a shoe, facial expressions, hand gestures)
+    Make sure you also describe fine-grained object details
+    Small or subtle elements
     Spatial relationships that might become ambiguous
-    Specific attributes like textures, relative positions, or numbers of similar objects
+    Specific attributes like textures, relative positions, colors, or numbers of similar objects
     Avoid unnecessary words or generic phrases. Use precise and informative language.
+    """
+
+    """
+    new prompt: 
+    You are given an image. Describe it in under 70 tokens, focusing on detailed visual features that help reconstruct the image if parts are masked. Include:
+
+    Object types, number, and relative sizes
+    Colors, textures, and materials
+    Positions and spatial layout (e.g., left, center, background)
+    Orientations and directions (e.g., facing left, upright)
+    Lighting, shadows, occlusions
+    Symmetry, perspective, or repeated structures
+    Be concise, realistic, and aligned with CLIP’s vision-language space. Avoid vague or emotional language.
+    """
+
+    """
+    You are given an image. Describe it in under 70 tokens, focusing on detailed visual features that help reconstruct the image if parts are masked. Include:
+
+    Object types, number, and relative sizes
+    Colors, textures, and materials
+    Positions and spatial layout (e.g., left, center, background)
+    Orientations and directions (e.g., facing left, upright)
+    Lighting, shadows, occlusions
+    Symmetry, perspective, or repeated structures
+    Focus mainly on the primary object in the image. Mention background or surrounding elements briefly. Be concise, realistic, and aligned with CLIP’s vision-language space. Avoid vague or emotional language.
     """
 
     def __init__(self, data_path: str = 'dataset/si_daps/additional_texts', pretrained_model: str = 'ViT-B/32',
@@ -391,4 +417,66 @@ class TextAlignmentReward(Reward):
         return embeddings
 
 
+    def get_gradients(self, particles, **kwargs) -> torch.Tensor:
+        return None
+'''
 
+
+@register_reward_method('text-alignment')
+class TextAlignmentReward(Reward):
+    def __init__(self, data_path: str = 'dataset/si_daps/additional_texts', pretrained_model: str = 'ImageReward-v1.0',
+                 resolution: int = 256, device: str = 'cuda:0', scale=1, **kwargs):
+        super().__init__(**kwargs)
+        file_types = ['*.txt']
+        self.device = device
+
+        files = [f for f in os.listdir(data_path) if f.lower().endswith('.txt')]
+        files.sort()
+        self.files: List[str] = [os.path.join(data_path, f) for f in files]
+        print(30 * '-')
+        print('in constructor of TextAlignmentReward: ')
+        print('self.files are: ', self.files)
+        print(30 * '-')
+
+        # this will download the ViT-B/32 weights on first run
+        self.model = RM.load(pretrained_model, device=device)
+        #self.model, self.preprocess = clip.load("ViT-B/32", device=device)
+        self.model.eval()
+        self.side_info = None
+        self.scale = scale
+        self.name = 'text-alignment'
+
+
+    def get_reward(self, images: torch.Tensor, **kwargs) -> torch.Tensor:
+        tensor_images = ((images + 1) / 2 * 255).clamp(0, 255).byte()
+
+        print(30 * '$', flush=True)
+        print(torch.norm(images[0] - images[1]), flush=True)
+        print(images.min(), flush=True)
+        print(images.max(), flush=True)
+        print(30 * '$', flush=True)
+
+        to_pil = transforms.ToPILImage()
+
+        # convert each tensor to a PIL image that ImageReward expects
+        pil_imgs = [to_pil(img.cpu()) for img in tensor_images]
+
+        with torch.no_grad():
+            _, rewards = self.model.inference_rank(self.side_info, pil_imgs)  # `rewards` is a list of floats
+
+        print(30 * '-', flush=True)
+        print('rewards are: ', rewards)
+        print(30 * '-', flush=True)
+        return torch.tensor(rewards).to(self.device)
+
+    def set_side_info(self, index: int) -> None:
+        path = self.files[index]
+        with open(path, 'r', encoding='utf-8') as fp:
+            text = fp.read()
+        self.side_info = text
+        print(30 * '-', flush=True)
+        print('side info is: ', self.side_info)
+        print(30 * '-', flush=True)
+
+    def get_gradients(self, particles, **kwargs) -> torch.Tensor:
+        return None

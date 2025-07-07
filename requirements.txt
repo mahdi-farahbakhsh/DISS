@@ -65,4 +65,5 @@ mxnet
 opencv-python
 pandas
 scikit-learn
+image-reward
 git+https://github.com/openai/CLIP.git@main
