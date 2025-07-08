@@ -1,6 +1,6 @@
 import torch
 import piq
-from diss_modules.reward import AdaFaceReward
+from diss_modules.reward import AdaFaceReward, TextAlignmentReward, ImageReward
 import re
 from typing import List, Tuple
 import pandas as pd
@@ -31,7 +31,6 @@ def compute_ssim(x: torch.Tensor, gt: torch.Tensor, data_range: float = 1.0) -> 
     scores = piq.ssim(x_rescaled, gt_rescaled, data_range=data_range, reduction='none')
     return scores
 
-
 def compute_face(x: torch.Tensor, gt: torch.Tensor):
     reward_network = AdaFaceReward()
     with torch.no_grad():
@@ -40,7 +39,22 @@ def compute_face(x: torch.Tensor, gt: torch.Tensor):
     return torch.norm(gt_embed - x_embed, dim=1)
 
 
-def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
+def compute_text_alignment(x: torch.Tensor, si_file_id: int, si_path = '../../imagenet_test_data/ordered_captions/'):  # gt is the index in the path
+    reward_network = TextAlignmentReward(data_path=si_path)
+    reward_network.set_side_info(si_file_id)
+    clip_scores = reward_network.get_reward(x)
+    return clip_scores
+
+
+def compute_image_reward(x: torch.Tensor, si_file_id: int, si_path = '../../imagenet_test_data/ordered_captions/'):  # gt is the index in the path
+    reward_network = ImageReward(data_path=si_path)
+    reward_network.set_side_info(si_file_id)
+    with torch.no_grad():
+        ir_scores = reward_network.get_reward(x)
+    return ir_scores
+        
+
+def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: int = 0) -> str:
     B = x.size(0)
     device = x.device
 
@@ -56,6 +70,8 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
     ps = torch.full((B,), -fallback, device=device)
     ss = torch.full((B,), -fallback, device=device)
     fr = torch.full((B,), fallback, device=device)
+    ta = torch.full((B,), -fallback, device=device)
+    ir = torch.full((B,), -fallback, device=device)
 
     # 3) compute metrics only on the good indices
     good_idx = (~nan_mask).nonzero(as_tuple=True)[0]
@@ -67,20 +83,25 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
         ps_good = compute_psnr(x_good, gt_good)      # (Ngood,)
         ss_good = compute_ssim(x_good, gt_good)      # (Ngood,)
         fr_good = compute_face(x_good, gt_good)      # (Ngood,)
+        ta_good = compute_text_alignment(x_good, si_file_id)      # (Ngood,)
+        ir_good = compute_image_reward(x_good, si_file_id)      # (Ngood,)
 
         lp[good_idx] = lp_good
         ps[good_idx] = ps_good
         ss[good_idx] = ss_good
         fr[good_idx] = fr_good
+        ta[good_idx] = ta_good
+        ir[good_idx] = ir_good
 
     # 4) move to CPU/NumPy for pretty-printing
     lp_np = lp.cpu().numpy()
     ps_np = ps.cpu().numpy()
     ss_np = ss.cpu().numpy()
     fr_np = fr.cpu().numpy()
-
+    ta_np = ta.cpu().numpy()        
+    ir_np = ir.cpu().numpy()
     # 5) build your ASCII table
-    table_str  = f"{'Image':<8}{'LPIPS':<11}{'PSNR':<11}{'SSIM':<11}{'FaceDiff':<11}\n"
+    table_str  = f"{'Image':<8}{'LPIPS':<11}{'PSNR':<11}{'SSIM':<11}{'FaceDiff':<11}{'ClipScore':<11}{'ImageReward':<11}\n"
     table_str += "-" * 48 + "\n"
     for i in range(B):
         table_str += (
@@ -88,7 +109,9 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
             f"{lp_np[i]:<11.4f}"
             f"{ps_np[i]:<11.4f}"
             f"{ss_np[i]:<11.4f}"
-            f"{fr_np[i]:<11.4f}\n"
+            f"{fr_np[i]:<11.4f}"
+            f"{ta_np[i]:<11.4f}"
+            f"{ir_np[i]:<11.4f}\n"
         )
     table_str += "-" * 48 + "\n"
 
@@ -96,7 +119,9 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
             (np.abs(lp_np) <= 100) &
             (np.abs(ps_np) <= 100) &
             (np.abs(ss_np) <= 100) &
-            (np.abs(fr_np) <= 100)
+            (np.abs(fr_np) <= 100) &
+            (np.abs(ta_np) <= 100) &
+            (np.abs(ir_np) <= 100)
     )
 
     if valid.any():
@@ -104,9 +129,11 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
         avg_ps = ps_np[valid].mean()
         avg_ss = ss_np[valid].mean()
         avg_fr = fr_np[valid].mean()
+        avg_ta = ta_np[valid].mean()
+        avg_ir = ir_np[valid].mean()
     else:
         # no valid samples → fall back to NaN (will print “nan”)
-        avg_lp = avg_ps = avg_ss = avg_fr = np.nan
+        avg_lp = avg_ps = avg_ss = avg_fr = avg_ta = avg_ir = np.nan
 
     # now append the Average row using those filtered means
     table_str += (
@@ -114,15 +141,17 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
         f"{avg_lp:<11.4f}"
         f"{avg_ps:<11.4f}"
         f"{avg_ss:<11.4f}"
-        f"{avg_fr:<11.4f}\n"
+        f"{avg_fr:<11.4f}"
+        f"{avg_ta:<11.4f}"
+        f"{avg_ir:<11.4f}\n"
     )
 
     return table_str
 
 
-COLS = ["Image", "LPIPS", "PSNR", "SSIM", "FaceDiff"]
-FMT  = "{:<8}{:<11}{:<11}{:<11}{:<11}"
-FMT_NUM = "{:<8}{:<11.4f}{:<11.4f}{:<11.4f}{:<11.4f}"
+COLS = ["Image", "LPIPS", "PSNR", "SSIM", "FaceDiff", "ClipScore", "ImageReward"]
+FMT  = "{:<8}{:<11}{:<11}{:<11}{:<11}{:<11}{:<11}"
+FMT_NUM = "{:<8}{:<11.4f}{:<11.4f}{:<11.4f}{:<11.4f}{:<11.4f}{:<11.4f}"
 
 def _parse_single(table_str: str) -> pd.DataFrame:
     """Turn one ASCII table into a DataFrame, dropping its internal Average row."""
@@ -147,13 +176,13 @@ def _format(df: pd.DataFrame, threshold: float = 100.0) -> str:
         parts.append(
             FMT_NUM.format(
                 str(r["Image"]),
-                r.LPIPS, r.PSNR, r.SSIM, r.FaceDiff
+                r.LPIPS, r.PSNR, r.SSIM, r.FaceDiff, r.ClipScore, r.ImageReward
             )
         )
     parts.append("-" * 48)
 
     # 2) build an average, masking out any extreme fallback values
-    metrics = df[["LPIPS", "PSNR", "SSIM", "FaceDiff"]]
+    metrics = df[["LPIPS", "PSNR", "SSIM", "FaceDiff", "ClipScore", "ImageReward"]]
     # create a mask of “valid” entries (|value| <= threshold)
     valid_mask = metrics.abs() <= threshold
     # turn outliers into NaN so that `.mean()` will skip them
@@ -166,7 +195,9 @@ def _format(df: pd.DataFrame, threshold: float = 100.0) -> str:
             avg["LPIPS"],
             avg["PSNR"],
             avg["SSIM"],
-            avg["FaceDiff"]
+            avg["FaceDiff"],
+            avg["ClipScore"],
+            avg["ImageReward"]
         )
     )
     return "\n".join(parts)
@@ -201,7 +232,8 @@ def build_tables(tables: List[str],
     for start in range(0, len(joined), num_particles):
         chunk = joined.iloc[start:start+num_particles]
         if not chunk.empty:
-            best_rows.append(chunk.loc[chunk.FaceDiff.idxmin()])
+            # best_rows.append(chunk.loc[chunk.FaceDiff.idxmin()])  # use for face tasks
+            best_rows.append(chunk.loc[chunk.ImageReward.idxmax()])  # use for text tasks
     best_df = pd.DataFrame(best_rows).reset_index(drop=True)
     t2 = _format(best_df)
 
@@ -213,7 +245,7 @@ def build_tables(tables: List[str],
     for start in range(0, len(best_df), group_size):
         grp = best_df.iloc[start:start+group_size]
         if not grp.empty:
-            mean_vals = grp[["LPIPS","PSNR","SSIM","FaceDiff"]].mean()
+            mean_vals = grp[["LPIPS","PSNR","SSIM","FaceDiff","ClipScore","ImageReward"]].mean()
             per_img.append({"Image": start//group_size,
                             **mean_vals.to_dict()})
     per_df = pd.DataFrame(per_img)

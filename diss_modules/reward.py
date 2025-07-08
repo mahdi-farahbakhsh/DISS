@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from typing import Tuple, List
 import clip
 import os
+import ImageReward as RM
 
 __REWARD_METHOD__ = {}
 
@@ -349,16 +350,20 @@ class TextAlignmentReward(Reward):
 
     def get_reward_norm(self, images: torch.Tensor, **kwargs) -> torch.Tensor:  # older def of get_reward
         embed = self._embeddings(images)
-        return - torch.norm(self.side_info - embed, dim=1)
+        norm_diff = torch.norm(self.side_info - embed, dim=1)
+        print('norm_diff: ', norm_diff, flush=True)
+        return -norm_diff
 
     def get_reward(self, images: torch.Tensor, **kwargs) -> torch.Tensor:  # updated def of get_reward
-        embed = self._embeddings(images)
+        embed = self._embeddings(images, take_grad=kwargs.get('take_grad', False))
         # normalize the embeddings
         normalized_image_embed = embed / embed.norm(dim=1, keepdim=True)
         print('shape of normalized_image_embed: ', normalized_image_embed.shape, flush=True)
         print('shape of normalized_text_embed: ', self.normalized_text_embed.shape, flush=True)
         # cosine similarity
-        return torch.matmul(normalized_image_embed, self.normalized_text_embed.T)
+        clip_score = torch.matmul(normalized_image_embed, self.normalized_text_embed.T).squeeze(-1).float()
+        print('clip score: ', clip_score, flush=True)
+        return clip_score
 
 
     def set_side_info(self, index: int) -> None:
@@ -384,7 +389,7 @@ class TextAlignmentReward(Reward):
         print('shape of side_info: ', self.side_info.shape)
         print(30 * '-')
 
-    def _embeddings(self, tensor_images):
+    def _embeddings(self, tensor_images, take_grad=False):
         tensor_images = (tensor_images + 1) / 2
 
         tensor_images = F.interpolate(
@@ -395,8 +400,12 @@ class TextAlignmentReward(Reward):
         )
         tensor_images = (tensor_images - self.__channel_mean) / self.__channel_sd
 
-        with torch.no_grad():
-            embeddings = self.model.encode_image(tensor_images)  # shape [B, D]
+        if take_grad:
+            with torch.enable_grad():
+                embeddings = self.model.encode_image(tensor_images)  # shape [B, D]
+        else:
+            with torch.no_grad():
+                embeddings = self.model.encode_image(tensor_images)  # shape [B, D]
 
         print(30 * '-', flush=True)
         print('shape of embeddings are: ', embeddings.shape, flush=True)
@@ -405,7 +414,82 @@ class TextAlignmentReward(Reward):
         return embeddings
 
     def get_gradients(self, images: torch.Tensor, **kwargs) -> torch.Tensor:
-        # dummy function for now, change later
-        return self.model.encode_image(images)
+
+        images = images.clone().detach().requires_grad_(True)
+
+        # get gradients
+        rewards = self.get_reward(images, take_grad=True)  # this is the reward function that takes grads
+        rewards.sum().backward()
+        grads = images.grad
+        if grads is None:
+            grads = torch.zeros_like(images)
+        
+        return -grads.detach()  # negative sign to make it grad of loss to be compatible with AdaFaceReward
 
 
+
+@register_reward_method('image-reward')
+class ImageReward(Reward):
+    def __init__(self, data_path: str = '../../imagenet_test_data/selected_captions/', pretrained_model: str = 'ImageReward-v1.0',
+                 resolution: int = 256, device: str = 'cuda:0', scale=1, **kwargs):
+        super().__init__(**kwargs)
+        file_types = ['*.txt']
+        self.device = device
+
+        files = [f for f in os.listdir(data_path) if f.lower().endswith('.txt')]
+        files.sort()
+        self.files: List[str] = [os.path.join(data_path, f) for f in files]
+        print(30 * '-')
+        print('in constructor of TextAlignmentReward: ')
+        print('self.files are: ', self.files)
+        print(30 * '-')
+
+        # this will download the ViT-B/32 weights on first run
+        self.model = RM.load(pretrained_model, device=device)
+        #self.model, self.preprocess = clip.load("ViT-B/32", device=device)
+        self.model.eval()
+        self.side_info = None
+        self.scale = scale
+        self.name = 'image-reward'
+
+
+    def get_reward(self, images: torch.Tensor, **kwargs) -> torch.Tensor:
+        tensor_images = ((images + 1) / 2 * 255).clamp(0, 255).byte()
+
+        print(30 * '$', flush=True)
+        print(torch.norm(images[0] - images[1]), flush=True)
+        print(images.min(), flush=True)
+        print(images.max(), flush=True)
+        print(30 * '$', flush=True)
+
+        to_pil = transforms.ToPILImage()
+
+        # convert each tensor to a PIL image that ImageReward expects
+        pil_imgs = [to_pil(img.cpu()) for img in tensor_images]
+
+        with torch.no_grad():
+            _, ranked_rewards = self.model.inference_rank(self.side_info, pil_imgs)  # `rewards` is a list of floats
+
+        with torch.no_grad():
+            rewards = self.model.score(self.side_info, pil_imgs)  # `rewards` is a list of floats
+
+        print('ranked_rewards are: ', ranked_rewards)
+        print('rewards are: ', rewards)
+
+        print(30 * '-', flush=True)
+        print('rewards are: ', rewards)
+        print(30 * '-', flush=True)
+
+        return torch.tensor(rewards).to(self.device)
+
+    def set_side_info(self, index: int) -> None:
+        path = self.files[index]
+        with open(path, 'r', encoding='utf-8') as fp:
+            text = fp.read()
+        self.side_info = text
+        print(30 * '-', flush=True)
+        print('side info is: ', self.side_info)
+        print(30 * '-', flush=True)
+
+    def get_gradients(self, particles, **kwargs) -> torch.Tensor:
+        return None
