@@ -177,7 +177,7 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: i
         f"{avg_ps:<11.4f}"
         f"{avg_ss:<11.4f}"
         f"{avg_fr:<11.4f}"
-        f"{avg_ta:<11.4f}"
+        f"{avg_ta:<11.4f}\n"
     )
 
     return table_str
