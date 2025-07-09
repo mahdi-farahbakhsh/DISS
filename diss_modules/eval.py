@@ -113,7 +113,6 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: i
     ss = torch.full((B,), -fallback, device=device)
     fr = torch.full((B,), fallback, device=device)
     cs = torch.full((B,), -fallback, device=device)
-    # ir = torch.full((B,), -fallback, device=device)
 
     # 3) compute metrics only on the good indices
     good_idx = (~nan_mask).nonzero(as_tuple=True)[0]
@@ -126,14 +125,12 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: i
         ss_good = compute_ssim(x_good, gt_good)      # (Ngood,)
         fr_good = compute_face(x_good, gt_good)      # (Ngood,)
         cs_good = compute_clip_score(x_good, gt_good)      # (Ngood,)
-        # ir_good = compute_image_reward(x_good, si_file_id)      # (Ngood,)
 
         lp[good_idx] = lp_good
         ps[good_idx] = ps_good
         ss[good_idx] = ss_good
         fr[good_idx] = fr_good
         cs[good_idx] = cs_good
-        # ir[good_idx] = ir_good
 
     # 4) move to CPU/NumPy for pretty-printing
     lp_np = lp.cpu().numpy()
@@ -141,7 +138,6 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: i
     ss_np = ss.cpu().numpy()
     fr_np = fr.cpu().numpy()
     cs_np = cs.cpu().numpy()        
-    # ir_np = ir.cpu().numpy()
     # 5) build your ASCII table
     table_str  = f"{'Image':<8}{'LPIPS':<11}{'PSNR':<11}{'SSIM':<11}{'FaceDiff':<11}{'ClipScore':<11}\n"
     table_str += "-" * 48 + "\n"
@@ -161,8 +157,7 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: i
             (np.abs(ps_np) <= 100) &
             (np.abs(ss_np) <= 100) &
             (np.abs(fr_np) <= 100) &
-            (np.abs(cs_np) <= 100) &
-            # (np.abs(ir_np) <= 100)
+            (np.abs(cs_np) <= 100)
     )
 
     if valid.any():
@@ -171,7 +166,6 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: i
         avg_ss = ss_np[valid].mean()
         avg_fr = fr_np[valid].mean()
         avg_ta = cs_np[valid].mean()
-        # avg_ir = ir_np[valid].mean()
     else:
         # no valid samples → fall back to NaN (will print “nan”)
         avg_lp = avg_ps = avg_ss = avg_fr = avg_ta = np.nan
@@ -184,7 +178,6 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, si_file_id: i
         f"{avg_ss:<11.4f}"
         f"{avg_fr:<11.4f}"
         f"{avg_ta:<11.4f}"
-        # f"{avg_ir:<11.4f}\n"
     )
 
     return table_str
