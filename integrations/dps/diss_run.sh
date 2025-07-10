@@ -22,5 +22,5 @@ export PYTHONPATH=diffusion-posterior-sampling:../../../DISS:../../../DISS/third
 python3 diss_sample_conditions.py \
     --model_config=diffusion-posterior-sampling/configs/imagenet_model_config.yaml \
     --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
-    --task_config=diss_configs/diss_inpainting_config.yaml \
-    --path=s42b8_ImageReward
+    --task_config=diss_configs/diss_super_resolution_config.yaml \
+    --path=SR32_dps0.9s42b25
