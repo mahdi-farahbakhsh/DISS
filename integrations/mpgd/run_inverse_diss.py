@@ -4,8 +4,8 @@ import argparse
 import yaml
 import sys
 
-# Add parent directory to Python path to import diss_modules
-sys.path.append('../../')
+# # Add parent directory to Python path to import diss_modules
+# sys.path.append('../../')
 
 from diss_modules.reward import get_reward_method
 from diss_modules.search import get_search_method
