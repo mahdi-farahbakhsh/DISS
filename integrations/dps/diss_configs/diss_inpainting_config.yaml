@@ -29,7 +29,7 @@ rewards:
 
 search_algorithm:
   name: group-meeting
-  base: 50
+  base: 5000
   min_group: 2
   max_group: 4
   start_step: 960

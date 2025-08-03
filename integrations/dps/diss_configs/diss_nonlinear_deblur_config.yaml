@@ -5,27 +5,28 @@ conditioning:
 
 data:
   name: ffhq
-  root: ../../data/images/
+  root: ../../data/vishnu_images/
 
 measurement:
   operator:
     name: nonlinear_blur
-    opt_yml_path: ./bkse/options/generate_blur/default.yml
+    opt_yml_path: ./diffusion-posterior-sampling/bkse/options/generate_blur/default.yml
 
   noise:
     name: gaussian
     sigma: 0.05
 
 rewards:
-  - name: adaface
+  - name: text-alignment
     steering: [search]
-    data_path: '../../data/additional_images'
+    data_path: '../../data/gpt_texts'
     scale: 16 # the scale for gradient in MCMC steps
 
 search_algorithm:
   name: group-meeting
-  base: 2000
-  min_group: 1
-  max_group: 1
+  base: 100
+  min_group: 2
+  max_group: 4
+  start_step: 960
 
-num_particles: 1
+num_particles: 4

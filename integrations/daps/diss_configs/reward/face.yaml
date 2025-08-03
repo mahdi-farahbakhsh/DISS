@@ -6,8 +6,8 @@ rewards:
 
 search_algorithm:
   name: group-meeting
-  base: 1
-  min_group: 8
-  max_group: 8
+  base: 2000
+  min_group: 2
+  max_group: 2
 
-num_particles: 8
+num_particles: 2

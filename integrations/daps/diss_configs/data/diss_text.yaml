@@ -1,0 +1,5 @@
+name: image
+root: '../../data/vishnu_images/'
+resolution: 256
+start_id: 0
+end_id: 1

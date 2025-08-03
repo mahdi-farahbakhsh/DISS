@@ -13,14 +13,18 @@
 # select your singularity shell (currently cuda10.2-cudnn7-py36)
 singularity shell /mnt/lab_files/ECEN403-404/containers/cuda_10.2-cudnn7-py36.sif
 # source your virtual environmnet
-cd /mnt/shared-scratch/Narayanan_K/mahdi.farahbakhsh/DISS/integrations/dps
-source activate DPS_paper
+cd /mnt/shared-scratch/Narayanan_K/mahdi.farahbakhsh/DISS/integrations/daps
+source activate DISS
 
 # Set PYTHONPATH directly
-export PYTHONPATH=diffusion-posterior-sampling:../../../DISS:../../../DISS/third_party/AdaFace
+export PYTHONPATH=DAPS:../../../DISS:../../../DISS/third_party/AdaFace
 
-python3 diss_sample_conditions.py \
-    --model_config=diffusion-posterior-sampling/configs/imagenet_model_config.yaml \
-    --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
-    --task_config=diss_configs/diss_nonlinear_deblur_config.yaml \
-    --path=non_s42b100
+python diss_posterior_sample.py \
++model=imagenet256ddpm \
++sampler=edm_daps \
++data=diss_text \
++task=diss_inpainting_text \
++reward=text \
+sampler.diffusion_scheduler_config.num_steps=5 \
+sampler.annealing_scheduler_config.num_steps=200 \
+data.start_id=0 data.end_id=24 name=inpainting_s44b1_start140

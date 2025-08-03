@@ -1,14 +1,14 @@
 rewards:
   - name: text-alignment
-    pretrained_model: 'ViT-B/32'
     steering: [search]
-    data_path: 'dataset/si_daps/additional_texts'
+    data_path: '../../data/gpt_texts'
     scale: 32 # the scale for gradient in MCMC steps
 
 search_algorithm:
   name: group-meeting
   base: 1
-  min_group: 8
-  max_group: 8
+  min_group: 4
+  max_group: 4
+  start_step: 140
 
-num_particles: 8
+num_particles: 4

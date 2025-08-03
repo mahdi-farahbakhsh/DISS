@@ -27,4 +27,4 @@ python diss_posterior_sample.py \
 +reward=face \
 sampler.diffusion_scheduler_config.num_steps=5 \
 sampler.annealing_scheduler_config.num_steps=200 \
-data.start_id=0 data.end_id=2 name=inpainting_test
+data.start_id=0 data.end_id=2 name=inpainting_test_dps
