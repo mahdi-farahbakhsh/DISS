@@ -39,13 +39,6 @@ def compute_face(x: torch.Tensor, gt: torch.Tensor):
     return torch.norm(gt_embed - x_embed, dim=1)
 
 
-# def compute_text_alignment(x: torch.Tensor, si_file_id: int, si_path = '../../imagenet_test_data/ordered_captions/'):  # gt is the index in the path
-#     reward_network = TextAlignmentReward(data_path=si_path)
-#     reward_network.set_side_info(si_file_id)
-#     clip_scores = reward_network.get_reward(x)
-#     return clip_scores
-
-
 import clip
 import torch.nn.functional as F
 

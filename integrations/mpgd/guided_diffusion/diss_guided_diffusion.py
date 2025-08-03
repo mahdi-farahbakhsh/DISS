@@ -423,7 +423,7 @@ class DDIM(SpacedDiffusion):
         coef2 = extract_and_expand(self.sqrt_recipm1_alphas_cumprod, t, x_t)
         return (coef1 * x_t - pred_xstart) / coef2
     
-@register_sampler(name='x0ddim_search')
+@register_sampler(name='x0ddim')
 class DDIMx0(SpacedDiffusion):
     def p_sample(self, model, x, t, eta=1.0):
         eta = self.eta

@@ -7,7 +7,7 @@ import os
 processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b")
 model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-opt-2.7b")
 
-image_path = "./imagenet_data/val_set"
+image_path = "./imagenet_test_data/images/"
 
 # Create a directory to save the captions
 os.makedirs("captions", exist_ok=True)
@@ -35,7 +35,9 @@ for i, image_file in enumerate(sorted(os.listdir(image_path))):  # change to sor
 
     # Save caption to a file in append mode
 
-    with open(f"captions/{image_file}.txt", "w") as f:
+    image_file_name = image_file.replace('.jpg', '.txt')
+
+    with open(f"./imagenet_test_data/captions/{image_file_name}", "w") as f:
         f.write(f"{caption}")
 
 

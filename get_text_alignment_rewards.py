@@ -5,13 +5,11 @@ import os
 import shutil
 import numpy as np
 
-image_root = 'imagenet_data/val_set/'
-text_root = 'captions/'
+image_root = './imagenet_test_data/images/'
+text_root = './imagenet_test_data/captions/'
 
 
 image_files = sorted(os.listdir(image_root))
-text_files = sorted(os.listdir(text_root))
-
 
 data_config = {
     'name': 'imagenet',
@@ -54,19 +52,23 @@ top_k_ids = sorted_clip_scores[:top_k, 1].astype(int)
 
 print('top k ids: ', top_k_ids)
 
+
+sorted_image_path = 'imagenet_test_data/ordered_images'
+sorted_caption_path = 'imagenet_test_data/ordered_captions'
+
 # Create a directory to store the top k images
-os.makedirs('top_k_images', exist_ok=True)
-os.makedirs('top_k_captions', exist_ok=True)
+os.makedirs(sorted_image_path, exist_ok=True)
+os.makedirs(sorted_caption_path, exist_ok=True)
 
 for j, idx in enumerate(top_k_ids):
     # Get the image file name
     image_file = image_files[idx]
-    # Copy the image to the top k images directory
-    shutil.copy(os.path.join(image_root, image_file), os.path.join('top_k_images', image_file))
+    # the image to the top k images directory
+    shutil.copy(os.path.join(image_root, image_file), os.path.join(sorted_image_path, f"{j:05d}_{image_file}"))
     # Get the text file name
-    text_file = text_files[idx]
+    text_file = image_files[idx].replace('.jpg', '.txt')
     # Copy the text file to the top k captions directory
-    shutil.copy(os.path.join(text_root, text_file), os.path.join('top_k_captions', text_file))
+    shutil.copy(os.path.join(text_root, text_file), os.path.join(sorted_caption_path, f"{j:05d}_{text_file}"))
     print('clip score: ', sorted_clip_scores[j, 0], 'match: ', clip_scores[idx, 0])
 
 

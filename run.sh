@@ -16,7 +16,6 @@ module load WebProxy
 source activate /scratch/user/vishnukunde/.conda/envs/DISS
 
 export PYTHONPATH=integrations/dps/diffusion-posterior-sampling:third_party/AdaFace
-
 echo $PYTHONPATH
 
 python3 get_text_alignment_rewards.py
