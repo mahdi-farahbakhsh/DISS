@@ -81,7 +81,7 @@ def compute_clip_score(x: torch.Tensor, gt: torch.Tensor):  # gt is the index in
     return clip_score
 
 
-def compute_image_reward(x: torch.Tensor, si_file_id: int, si_path = '../../imagenet_test_data/detailed_captions/'):  # gt is the index in the path
+def compute_image_reward(x: torch.Tensor, si_file_id: int, si_path = '../../data/gpt_texts/'):  # gt is the index in the path
     reward_network = ImageReward(data_path=si_path)
     reward_network.set_side_info(si_file_id)
     with torch.no_grad():
