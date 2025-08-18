@@ -149,7 +149,7 @@ def main():
         for run in range(num_runs):
             # Exception) In case of inpainging,
             if measure_config['operator']['name'] == 'inpainting':
-                mask = mask_gen(ref_img)
+                mask = mask_gen(ref_img, mask_loc=measure_config['mask_opt']['mask_loc'])
                 mask = mask[:, 0, :, :].unsqueeze(dim=0)
                 measurement_cond_fn = partial(cond_method.conditioning, mask=mask)
                 sample_fn = partial(sample_fn, measurement_cond_fn=measurement_cond_fn)

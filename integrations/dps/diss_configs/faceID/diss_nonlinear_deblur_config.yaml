@@ -1,0 +1,31 @@
+conditioning:
+  method: diss_ps
+  params:
+    scale: 0.3
+
+data:
+  name: ffhq
+  root: ../../data/faceID/images
+
+measurement:
+  operator:
+    name: nonlinear_blur
+    opt_yml_path: ./diffusion-posterior-sampling/bkse/options/generate_blur/default.yml
+
+  noise:
+    name: gaussian
+    sigma: 0.05
+
+rewards:
+  - name: adaface
+    steering: [search]
+    data_path: '../../data/faceID/additional_images'
+    scale: 0.6 # the scale for gradient in MCMC steps
+
+search_algorithm:
+  name: group-meeting
+  base: 4
+  min_group: 2
+  max_group: 8
+
+num_particles: 8

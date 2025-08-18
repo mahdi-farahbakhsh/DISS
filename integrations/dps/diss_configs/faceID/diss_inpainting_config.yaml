@@ -1,0 +1,37 @@
+conditioning:
+  method: diss_ps
+  params:
+    scale: 0.5
+
+data:
+  name: ffhq
+  root: ../../data/faceID/images/
+
+measurement:
+  operator:
+    name: inpainting
+  mask_opt:
+    mask_type: box
+    mask_len_range: !!python/tuple [96, 97]  # for box
+    # mask_prob_range: !!python/tuple [0.3, 0.7]  # for random
+    image_size: 256
+    mask_loc: (140, 100)
+
+
+  noise:
+    name: gaussian
+    sigma: 0.05
+
+rewards:
+  - name: adaface
+    steering: [search]
+    data_path: '../../data/faceID/additional_images'
+    scale: 1
+
+search_algorithm:
+  name: group-meeting
+  base: 4
+  min_group: 2
+  max_group: 8
+
+num_particles: 8

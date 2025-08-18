@@ -12,7 +12,7 @@ def add_init_files(root_dir):
         return
 
     for dirpath, dirnames, filenames in os.walk(root_dir):
-        # Skip hidden directories
+        # Skip hidden directories (e.g. .git/, __pycache__, etc.)
         if any(part.startswith('.') for part in dirpath.split(os.sep)):
             continue
 

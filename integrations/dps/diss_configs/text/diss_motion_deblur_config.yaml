@@ -1,0 +1,33 @@
+conditioning:
+  method: diss_ps
+  params:
+    scale: 0.3
+
+data:
+  name: ffhq
+  root: ../../data/text/images
+
+measurement:
+  operator:
+    name: motion_blur
+    kernel_size: 256
+    intensity: 0.5
+
+  noise:
+    name: gaussian
+    sigma: 0.1
+
+rewards:
+  - name: text-alignment
+    steering: [search]
+    data_path: '../../data/text/additional_texts'
+    scale: 0
+
+search_algorithm:
+  name: group-meeting
+  base: 50
+  min_group: 2
+  max_group: 4
+  start_step: 600
+
+num_particles: 4

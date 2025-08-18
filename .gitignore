@@ -50,3 +50,9 @@ integrations/blinddps/results/
 integrations/daps/DAPS/
 integrations/daps/results/
 
+data/additional_images
+data/gpt_texts
+data/gpt_texts_old
+data/images
+data/vishnu_images
+
