@@ -1,7 +1,8 @@
 # 🛠️ DISS: Inference-Time Search using Side Information for Diffusion-based Image Reconstruction
 
 ## Introduction
-This is our paper:)
+<img src="images/teaser.jpg" alt="Teaser" width="600"/>
+
 
 ## Getting Started
 ### 1) Clone the repository
