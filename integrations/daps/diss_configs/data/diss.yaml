@@ -1,5 +1,5 @@
 name: image
-root: '../../data/images'
+root: '../../data/faceID/images'
 resolution: 256
 start_id: 0
 end_id: 1

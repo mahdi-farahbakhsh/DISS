@@ -12,7 +12,7 @@ index 5f673f4..644208b 100644
              img = torch.cat([img] * 3, dim=0)
          return img
 diff --git a/forward_operator/__init__.py b/forward_operator/__init__.py
-index b52f739..1e37f93 100644
+index b52f739..2840da7 100644
 --- a/forward_operator/__init__.py
 +++ b/forward_operator/__init__.py
 @@ -61,7 +61,7 @@ class Operator(ABC):
@@ -38,7 +38,7 @@ index b52f739..1e37f93 100644
      # bb
      t = np.random.randint(margin_height, maxt)
      l = np.random.randint(margin_width, maxl)
-+    t, l = 150 - 16, 100 - 16
++    t, l = 134, 84
  
      # make mask
      mask = torch.ones([B, C, H, W], device=img.device)
@@ -49,7 +49,7 @@ index b52f739..1e37f93 100644
 -        
 \ No newline at end of file
 diff --git a/sampler.py b/sampler.py
-index 0e0d1bf..b3e0315 100644
+index 0e0d1bf..bb9612f 100644
 --- a/sampler.py
 +++ b/sampler.py
 @@ -39,7 +39,8 @@ class DAPS(nn.Module):
@@ -62,22 +62,25 @@ index 0e0d1bf..b3e0315 100644
          """
          Performs sampling using the DAPS method.
  
-@@ -69,12 +70,34 @@ class DAPS(nn.Module):
+@@ -69,12 +70,37 @@ class DAPS(nn.Module):
                  sampler = DiffusionPFODE(model, diffusion_scheduler, solver='euler')
                  x0hat = sampler.sample(xt)
  
 +            # Find the rewards and do the search
 +            rewards = torch.zeros(x0hat.shape[0], device=x0hat.device)
-+            for reward in search_rewards:
-+                with torch.no_grad():
-+                    rew = reward.get_reward(x0hat, measurements=measurement)
-+                rewards += rew
 +
-+            if search_rewards:  # if search rewards is empty we shouldn't do any search
-+                resampled_idx = search.search(rewards, step)
-+                print('resampled idxs: ', resampled_idx, flush=True)
-+                xt = xt[resampled_idx]
-+                x0hat = x0hat[resampled_idx]
++            search_step = step - search.start_step
++            if search_step % search.base == 0 and search_step > 0:
++                for reward in search_rewards:
++                    with torch.no_grad():
++                        rew = reward.get_reward(x0hat, measurements=measurement)
++                    rewards += rew
++
++                if search_rewards:  # if search rewards is empty we shouldn't do any search
++                    resampled_idx = search.search(rewards, search_step)
++                    print('resampled idxs: ', resampled_idx, flush=True)
++                    xt = xt[resampled_idx]
++                    x0hat = x0hat[resampled_idx]
 +
              # 2. MCMC update
              x0y = self.mcmc_sampler.sample(xt, model, x0hat, operator, measurement, sigma, step / self.annealing_scheduler.num_steps)
@@ -97,7 +100,7 @@ index 0e0d1bf..b3e0315 100644
              else:
                  xt = x0y
  
-@@ -95,7 +118,7 @@ class DAPS(nn.Module):
+@@ -95,7 +121,7 @@ class DAPS(nn.Module):
                      })
              if record:
                  self._record(xt, x0y, x0hat, sigma, x0hat_results, x0y_results)
@@ -106,7 +109,7 @@ index 0e0d1bf..b3e0315 100644
  
      def _record(self, xt, x0y, x0hat, sigma, x0hat_results, x0y_results):
          """Records the intermediate states during sampling."""
-@@ -205,4 +228,3 @@ class LatentDAPS(DAPS):
+@@ -205,4 +231,3 @@ class LatentDAPS(DAPS):
              if record:
                  self._record(xt, x0y, x0hat, sigma, x0hat_results, x0y_results)
          return xt

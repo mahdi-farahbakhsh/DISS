@@ -1,13 +1,14 @@
 rewards:
   - name: adaface
     steering: [search]
-    data_path: '../../data/additional_images'
+    data_path: '../../data/faceID/additional_images'
     scale: 13
 
 search_algorithm:
   name: group-meeting
-  base: 2000
+  base: 1
   min_group: 2
-  max_group: 2
+  max_group: 8
+  start_step: 1
 
-num_particles: 2
+num_particles: 8

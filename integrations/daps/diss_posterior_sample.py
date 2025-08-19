@@ -206,7 +206,7 @@ def sample_in_batch(sampler, model, x_start, operator, y, evaluator, verbose, re
         if save_root is not None:
             save_batch_reconstructions(save_root, s//batch_size, cur_samples, cur_y)
 
-        table = get_evaluation_table_string(cur_samples, cur_gt)
+        table = get_evaluation_table_string(cur_samples, cur_gt, metrics=['psnr', 'lpips', 'ssim', 'adaface'])
         all_tables.append(table)
         print(table)
 
@@ -290,9 +290,6 @@ def main(args):
         full_trajs.append(trajs)
     full_samples = torch.stack(full_samples, dim=0)
 
-    # log metrics
-    t1, t2, t3 = build_tables(all_tables, search.max_group, num_particles)
-    print(t1, '\n\n', t2, '\n\n', t3)
     print(f'finish {args.name}!')
 
 
