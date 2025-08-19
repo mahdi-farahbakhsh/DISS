@@ -78,7 +78,7 @@ def compute_clip_score(x: torch.Tensor, gt: torch.Tensor):  # gt is the index in
     return clip_score
 
 
-def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
+def get_evaluation_table_string2(x: torch.Tensor, gt: torch.Tensor) -> str:
     B = x.size(0)
     device = x.device
 
@@ -165,6 +165,72 @@ def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor) -> str:
     )
 
     return table_str
+
+
+def get_evaluation_table_string(x: torch.Tensor, gt: torch.Tensor, metrics: List[str]) -> str:
+    B = x.size(0)
+    device = x.device
+    fallback = 1000.0
+    good_idx = (~torch.isnan(x).view(B, -1).any(dim=1) & ~torch.isnan(gt).view(B, -1).any(dim=1)).nonzero(as_tuple=True)[0]
+
+    computed = {}
+    metric_fns = {
+        "lpips": compute_lpips,
+        "psnr": compute_psnr,
+        "ssim": compute_ssim,
+        "adaface": compute_face,
+        "clip": compute_clip_score
+        # Add more metrics as needed
+    }
+
+    metric_names = {
+        "lpips": "LPIPS",
+        "psnr": "PSNR",
+        "ssim": "SSIM",
+        "adaface": "FaceDiff",
+        "clip": "ClipScore"
+    }
+
+    # Initialize all metric tensors with fallback values
+    for key in metrics:
+        val = -fallback if key in ["psnr", "ssim", "adaface", "clip"] else fallback
+        computed[key] = torch.full((B,), val, device=device)
+
+    if good_idx.numel() > 0:
+        x_good = x[good_idx]
+        gt_good = gt[good_idx]
+        for key in metrics:
+            fn = metric_fns.get(key)
+            if fn is not None:
+                computed[key][good_idx] = fn(x_good, gt_good)
+
+    # Convert to NumPy
+    computed_np = {k: v.cpu().numpy() for k, v in computed.items()}
+
+    # Table header
+    table_str = f"{'Image':<8}" + "".join(f"{metric_names[m]:<11}" for m in metrics) + "\n"
+    table_str += "-" * (8 + len(metrics) * 11) + "\n"
+
+    # Row-wise output
+    for i in range(B):
+        row = f"{i:<8}" + "".join(f"{computed_np[m][i]:<11.4f}" for m in metrics) + "\n"
+        table_str += row
+
+    # Compute averages over valid samples
+    valid = np.ones(B, dtype=bool)
+    for v in computed_np.values():
+        valid &= np.abs(v) <= 100
+
+    if valid.any():
+        row = f"{'Average':<8}" + "".join(f"{computed_np[m][valid].mean():<11.4f}" for m in metrics) + "\n"
+    else:
+        row = f"{'Average':<8}" + "".join(f"{np.nan:<11.4f}" for _ in metrics) + "\n"
+
+    table_str += "-" * (8 + len(metrics) * 11) + "\n"
+    table_str += row
+
+    return table_str
+
 
 
 COLS = ["Image", "LPIPS", "PSNR", "SSIM", "FaceDiff", "ClipScore"]

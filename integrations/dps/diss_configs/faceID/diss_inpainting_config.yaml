@@ -15,7 +15,7 @@ measurement:
     mask_len_range: !!python/tuple [96, 97]  # for box
     # mask_prob_range: !!python/tuple [0.3, 0.7]  # for random
     image_size: 256
-    mask_loc: (140, 100)
+    mask_loc: !!python/tuple [140, 100]
 
 
   noise:

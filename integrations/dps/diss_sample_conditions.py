@@ -37,6 +37,8 @@ def main():
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--save_dir', type=str, default='./results')
     parser.add_argument('--path', type=str)
+    parser.add_argument('--metrics', type=str, default="psnr,lpips,ssim",
+                        help='Comma-separated list of metrics to compute')
     args = parser.parse_args()
 
     # logger
@@ -135,6 +137,8 @@ def main():
             **measure_config['mask_opt']
         )
 
+    # Parse the string into a list
+    metrics = [m.strip() for m in args.metrics.split(',')]
     all_tables = []
     num_runs = num_particles // batch_size
 
@@ -149,7 +153,7 @@ def main():
         for run in range(num_runs):
             # Exception) In case of inpainging,
             if measure_config['operator']['name'] == 'inpainting':
-                mask = mask_gen(ref_img, mask_loc=measure_config['mask_opt']['mask_loc'])
+                mask = mask_gen(ref_img)
                 mask = mask[:, 0, :, :].unsqueeze(dim=0)
                 measurement_cond_fn = partial(cond_method.conditioning, mask=mask)
                 sample_fn = partial(sample_fn, measurement_cond_fn=measurement_cond_fn)
@@ -186,18 +190,9 @@ def main():
                 )
 
             logger.info('')
-            table = get_evaluation_table_string(sample, ref_img.repeat(batch_size, 1, 1, 1))
+            table = get_evaluation_table_string(sample, ref_img.repeat(batch_size, 1, 1, 1), metrics=metrics)
             all_tables.append(table)
             print(table)
-
-    print()
-    for idx, table in enumerate(all_tables):
-        print(f'results for image {idx // num_runs} and run {idx - (idx // num_runs) * num_runs}')
-        print(table)
-        print()
-
-    t1, t2, t3 = build_tables(all_tables, search.max_group, num_particles)
-    print(t1, '\n\n', t2, '\n\n', t3)
 
     print()
     print('saved in ', args.path)

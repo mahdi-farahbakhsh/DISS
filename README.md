@@ -32,8 +32,8 @@ gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/dps/diffusion-posterior-
 gdown 1HAy7P19PckQLczVNXmVF-e_CRxq098uW -O integrations/dps/diffusion-posterior-sampling/models/imagenet256.pt
 
 # apply minimal modifications to DPS to call our reward and search modules
-python integrations/add_inits.py
 git -C integrations/dps/diffusion-posterior-sampling apply ../dps_modifications.patch
+python integrations/add_inits.py
 ````
 <br />
 
@@ -67,8 +67,8 @@ gdown 1nAhgjU8C6DCkOLmWTuPIzA6PMNkNmE5Z -O integrations/blinddps/blind-dps/model
 gdown 11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j -O integrations/blinddps/blind-dps/models/kernel_checkpoint.pt
 
 # apply minimal modifications to BlindDPS to call our reward and search modules
-python integrations/add_inits.py
 git -C integrations/blinddps/blind-dps/ apply ../blind_dps_modifications.patch
+python integrations/add_inits.py
 ````
 
 <br />
@@ -87,6 +87,7 @@ gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/daps/DAPS/checkpoints/ff
 
 # apply minimal modifications to DAPS to call our reward and search modules
 git -C integrations/daps/DAPS apply ../daps_modifications.patch
+python integrations/add_inits.py
 ````
 
 

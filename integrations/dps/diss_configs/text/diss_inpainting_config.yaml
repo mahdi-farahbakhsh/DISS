@@ -15,7 +15,7 @@ measurement:
     mask_len_range: !!python/tuple [138, 139]  # for box
     # mask_prob_range: !!python/tuple [0.3, 0.7]  # for random
     image_size: 256
-    mask_loc: (50, 65)
+    mask_loc: !!python/tuple [50, 65]
 
 
   noise:
@@ -32,7 +32,7 @@ search_algorithm:
   name: group-meeting
   base: 50
   min_group: 2
-  max_group: 4
+  max_group: 2
   start_step: 800
 
-num_particles: 4
+num_particles: 2

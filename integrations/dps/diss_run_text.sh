@@ -22,5 +22,6 @@ export PYTHONPATH=diffusion-posterior-sampling:../../../DISS:../../../DISS/third
 python3 diss_sample_conditions.py \
     --model_config=diffusion-posterior-sampling/configs/imagenet_model_config.yaml \
     --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
-    --task_config=diss_configs/text/diss_super_resolution_config.yaml \
-    --path=text_super_search
+    --task_config=diss_configs/text/diss_inpainting_config.yaml \
+    --path=text_inpainting_search \
+    --metrics=psnr,lpips,ssim,clip

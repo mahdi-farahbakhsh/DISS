@@ -23,4 +23,5 @@ python3 diss_sample_conditions.py \
     --model_config=diffusion-posterior-sampling/configs/model_config.yaml \
     --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
     --task_config=diss_configs/faceID/diss_inpainting_config.yaml \
-    --path=faceID_inpainting_search
+    --path=faceID_inpainting_search \
+    --metrics=psnr,lpips,ssim,adaface
