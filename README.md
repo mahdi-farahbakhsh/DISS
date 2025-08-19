@@ -2,6 +2,8 @@
 
 ## Introduction
 <b><u>D</u></b>iffusion-based <b><u>I</u></b>nference-time <b><u>S</u></b>earch using <b><u>S</u></b>ide Information (DISS) is a modular framework for improving image reconstruction in inverse problems using pretrained diffusion models.
+<ins>**D**</ins>iffusion-based <ins>**I**</ins>nference-time <ins>**S**</ins>earch using <ins>**S**</ins>ide Information
+
 
 **DISS** enables the use of arbitrary side information, such as identity embeddings, text prompts **inference time** without retraining. It performs particle-based search guided by reward functions that evaluate alignment with the side information, improving perceptual and semantic quality of reconstructions.
 
