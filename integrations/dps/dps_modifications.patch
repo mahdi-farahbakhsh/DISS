@@ -1,5 +1,5 @@
 diff --git a/guided_diffusion/condition_methods.py b/guided_diffusion/condition_methods.py
-index 5453884..5cd125b 100644
+index 5453884..355f950 100644
 --- a/guided_diffusion/condition_methods.py
 +++ b/guided_diffusion/condition_methods.py
 @@ -3,56 +3,110 @@ import torch
@@ -62,7 +62,7 @@ index 5453884..5cd125b 100644
 -    
 +
 +
-+class SiConditioningMethod(ABC):
++class DISSConditioningMethod(ABC):
 +    def __init__(self, operator, noiser, **kwargs):
 +        self.operator = operator
 +        self.noiser = noiser
@@ -150,8 +150,8 @@ index 5453884..5cd125b 100644
 -        
 +
 +
-+@register_conditioning_method(name='si_ps')
-+class SiPosteriorSampling(SiConditioningMethod):
++@register_conditioning_method(name='diss_ps')
++class DISSPosteriorSampling(DISSConditioningMethod):
 +    def __init__(self, operator, noiser, **kwargs):
 +        super().__init__(operator, noiser)
 +        self.scale = kwargs.get('scale', 1.0)
@@ -362,10 +362,19 @@ index 862e342..75b5b35 100644
          array = array.unsqueeze(-1)
  
 diff --git a/guided_diffusion/measurements.py b/guided_diffusion/measurements.py
-index fdd6e68..35b795b 100644
+index fdd6e68..543de3c 100644
 --- a/guided_diffusion/measurements.py
 +++ b/guided_diffusion/measurements.py
-@@ -42,7 +42,7 @@ class LinearOperator(ABC):
+@@ -3,6 +3,8 @@
+ from abc import ABC, abstractmethod
+ from functools import partial
+ import yaml
++import os
++import sys
+ from torch.nn import functional as F
+ from torchvision import torch
+ from motionblur.motionblur import Kernel
+@@ -42,7 +44,7 @@ class LinearOperator(ABC):
      def transpose(self, data, **kwargs):
          # calculate A^T * X
          pass
@@ -374,7 +383,7 @@ index fdd6e68..35b795b 100644
      def ortho_project(self, data, **kwargs):
          # calculate (I - A^T * A)X
          return data - self.transpose(self.forward(data, **kwargs), **kwargs)
-@@ -56,13 +56,13 @@ class LinearOperator(ABC):
+@@ -56,13 +58,13 @@ class LinearOperator(ABC):
  class DenoiseOperator(LinearOperator):
      def __init__(self, device):
          self.device = device
@@ -390,7 +399,7 @@ index fdd6e68..35b795b 100644
      def ortho_project(self, data):
          return data
  
-@@ -99,16 +99,16 @@ class MotionBlurOperator(LinearOperator):
+@@ -99,16 +101,16 @@ class MotionBlurOperator(LinearOperator):
          self.kernel = Kernel(size=(kernel_size, kernel_size), intensity=intensity)
          kernel = torch.tensor(self.kernel.kernelMatrix, dtype=torch.float32)
          self.conv.update_weights(kernel)
@@ -410,7 +419,7 @@ index fdd6e68..35b795b 100644
          return kernel.view(1, 1, self.kernel_size, self.kernel_size)
  
  
-@@ -138,16 +138,16 @@ class InpaintingOperator(LinearOperator):
+@@ -138,16 +140,16 @@ class InpaintingOperator(LinearOperator):
      '''This operator get pre-defined mask and return masked image.'''
      def __init__(self, device):
          self.device = device
@@ -430,7 +439,7 @@ index fdd6e68..35b795b 100644
      def ortho_project(self, data, **kwargs):
          return data - self.forward(data, **kwargs)
  
-@@ -165,7 +165,7 @@ class PhaseRetrievalOperator(NonLinearOperator):
+@@ -165,7 +167,7 @@ class PhaseRetrievalOperator(NonLinearOperator):
      def __init__(self, oversample, device):
          self.pad = int((oversample / 8.0) * 256)
          self.device = device
@@ -439,7 +448,7 @@ index fdd6e68..35b795b 100644
      def forward(self, data, **kwargs):
          padded = F.pad(data, (self.pad, self.pad, self.pad, self.pad))
          amplitude = fft2_m(padded).abs()
-@@ -175,8 +175,9 @@ class PhaseRetrievalOperator(NonLinearOperator):
+@@ -175,25 +177,43 @@ class PhaseRetrievalOperator(NonLinearOperator):
  class NonlinearBlurOperator(NonLinearOperator):
      def __init__(self, opt_yml_path, device):
          self.device = device
@@ -451,8 +460,30 @@ index fdd6e68..35b795b 100644
      def prepare_nonlinear_blur_model(self, opt_yml_path):
          '''
          Nonlinear deblur requires external codes (bkse).
-@@ -191,9 +192,13 @@ class NonlinearBlurOperator(NonLinearOperator):
-         blur_model.load_state_dict(torch.load(model_path)) 
+         '''
+-        from bkse.models.kernel_encoding.kernel_wizard import KernelWizard
++        # Save current path
++        current_dir = os.getcwd()
++        # Change to bkse and update sys.path
++        dps_path = os.path.join(current_dir, 'diffusion-posterior-sampling')
++        bkse_path = os.path.join(dps_path, 'bkse')
++        sys.path.insert(0, bkse_path)
++        os.chdir(bkse_path)
++
++        # Now import
++        from models.kernel_encoding.kernel_wizard import KernelWizard
+ 
+         with open(opt_yml_path, "r") as f:
+             opt = yaml.safe_load(f)["KernelWizard"]
+             model_path = opt["pretrained"]
+         blur_model = KernelWizard(opt)
+         blur_model.eval()
+-        blur_model.load_state_dict(torch.load(model_path)) 
++        blur_model.load_state_dict(torch.load(model_path))
++        # Restore path
++        os.chdir(current_dir)
++        sys.path.pop(0)
++
          blur_model = blur_model.to(self.device)
          return blur_model
 -    
@@ -467,7 +498,7 @@ index fdd6e68..35b795b 100644
          data = (data + 1.0) / 2.0  #[-1, 1] -> [0, 1]
          blurred = self.blur_model.adaptKernel(data, kernel=random_kernel)
          blurred = (blurred * 2.0 - 1.0).clamp(-1, 1) #[0, 1] -> [-1, 1]
-@@ -224,7 +229,7 @@ def get_noise(name: str, **kwargs):
+@@ -224,7 +244,7 @@ def get_noise(name: str, **kwargs):
  class Noise(ABC):
      def __call__(self, data):
          return self.forward(data)
@@ -476,7 +507,7 @@ index fdd6e68..35b795b 100644
      @abstractmethod
      def forward(self, data):
          pass
-@@ -238,7 +243,7 @@ class Clean(Noise):
+@@ -238,7 +258,7 @@ class Clean(Noise):
  class GaussianNoise(Noise):
      def __init__(self, sigma):
          self.sigma = sigma
@@ -485,7 +516,7 @@ index fdd6e68..35b795b 100644
      def forward(self, data):
          return data + torch.randn_like(data, device=data.device) * self.sigma
  
-@@ -254,7 +259,7 @@ class PoissonNoise(Noise):
+@@ -254,7 +274,7 @@ class PoissonNoise(Noise):
          '''
  
          # TODO: set one version of poisson
@@ -494,7 +525,7 @@ index fdd6e68..35b795b 100644
          # version 3 (stack-overflow)
          import numpy as np
          data = (data + 1.0) / 2.0
-@@ -272,7 +277,7 @@ class PoissonNoise(Noise):
+@@ -272,7 +292,7 @@ class PoissonNoise(Noise):
          # else:
          #     low_clip = 0
  
@@ -503,7 +534,7 @@ index fdd6e68..35b795b 100644
          # # Determine unique values in iamge & calculate the next power of two
          # vals = torch.Tensor([len(torch.unique(data))])
          # vals = 2 ** torch.ceil(torch.log2(vals))
-@@ -286,5 +291,5 @@ class PoissonNoise(Noise):
+@@ -286,5 +306,5 @@ class PoissonNoise(Noise):
  
          # if low_clip == -1:
          #     data = data * (old_max + 1.0) - 1.0

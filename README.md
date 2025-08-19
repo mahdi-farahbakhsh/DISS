@@ -35,6 +35,7 @@ git clone https://github.com/LeviBorodenko/motionblur integrations/dps/diffusion
 mkdir integrations/dps/diffusion-posterior-sampling/models
 gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/dps/diffusion-posterior-sampling/models/ffhq_10m.pt
 gdown 1HAy7P19PckQLczVNXmVF-e_CRxq098uW -O integrations/dps/diffusion-posterior-sampling/models/imagenet256.pt
+gdown 1vRoDpIsrTRYZKsOMPNbPcMtFDpCT6Foy -O integrations/dps/diffusion-posterior-sampling/bkse/experiments/pretrained/GOPRO_wVAE.pth
 
 # apply minimal modifications to DPS to call our reward and search modules
 git -C integrations/dps/diffusion-posterior-sampling apply ../dps_modifications.patch

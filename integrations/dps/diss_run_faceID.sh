@@ -22,6 +22,6 @@ export PYTHONPATH=diffusion-posterior-sampling:../../../DISS:../../../DISS/third
 python3 diss_sample_conditions.py \
     --model_config=diffusion-posterior-sampling/configs/model_config.yaml \
     --diffusion_config=diffusion-posterior-sampling/configs/diffusion_config.yaml \
-    --task_config=diss_configs/faceID/diss_inpainting_config.yaml \
-    --path=faceID_inpainting_search \
+    --task_config=diss_configs/faceID/diss_super_resolution_config.yaml \
+    --path=faceID_nonlinear_search \
     --metrics=psnr,lpips,ssim,adaface

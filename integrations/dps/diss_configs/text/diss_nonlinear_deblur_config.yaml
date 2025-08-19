@@ -10,7 +10,7 @@ data:
 measurement:
   operator:
     name: nonlinear_blur
-    opt_yml_path: ./diffusion-posterior-sampling/bkse/options/generate_blur/default.yml
+    opt_yml_path: ./options/generate_blur/default.yml
 
   noise:
     name: gaussian
