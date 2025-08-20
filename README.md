@@ -52,13 +52,24 @@ gdown '1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2' -O third_party/AdaFace/pretrained/adaf
 ````
 <br />
 
+### 5) Run DPS
+```bash
+cd integrations/dps
+sbatch diss_run_faceID.sh
+sbatch diss_run_text.sh
+````
+<br />
+
+
 
 <details>
-<summary>▶️ 5) Blind-DPS Setup</summary>
+<summary>▶️ 6) Blind-DPS Setup</summary>
 
 <br>
 
 ```bash
+# Make sure you are in the main DISS directory before running the following commands
+# You should see files like: README.md, requirements.txt, integrations/
 # clone repositories
 git clone https://github.com/BlindDPS/blind-dps.git integrations/blinddps/blind-dps
 git clone https://github.com/LeviBorodenko/motionblur integrations/blinddps/blind-dps/motionblur
@@ -72,6 +83,11 @@ gdown 1HAy7P19PckQLczVNXmVF-e_CRxq098uW -O integrations/blinddps/blind-dps/model
 # apply minimal modifications to BlindDPS to call our reward and search modules
 git -C integrations/blinddps/blind-dps/ apply ../blind_dps_modifications.patch
 python integrations/add_inits.py
+
+# Run BlindDPS
+cd integrations/blinddps
+sbatch diss_run_faceID.sh
+sbatch diss_run_text.sh
 ````
 
 </details>
@@ -79,11 +95,13 @@ python integrations/add_inits.py
 <br>
 
 <details>
-<summary>▶️ 6) DAPS Setup</summary>
+<summary>▶️ 7) DAPS Setup</summary>
 
 <br>
 
 ```bash
+# Make sure you are in the main DISS directory before running the following commands
+# You should see files like: README.md, requirements.txt, integrations/
 # clone repositories
 git clone https://github.com/zhangbingliang2019/DAPS.git integrations/daps/DAPS
 
@@ -94,6 +112,10 @@ gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/daps/DAPS/checkpoints/ff
 # apply minimal modifications to DAPS to call our reward and search modules
 git -C integrations/daps/DAPS apply ../daps_modifications.patch
 python integrations/add_inits.py
+
+# Run DAPS
+cd integrations/daps
+sbatch diss_run_faceID.sh
 ````
 
 </details>

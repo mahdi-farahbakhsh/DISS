@@ -9,7 +9,7 @@ from model import get_model
 from eval import get_eval_fn, Evaluator
 from diss_modules.reward import get_reward_method, MeasurementReward
 from diss_modules.search import get_search_method
-from diss_modules.eval import get_evaluation_table_string, build_tables
+from diss_modules.eval import get_evaluation_table_string
 from torch.nn.functional import interpolate
 from pathlib import Path
 from omegaconf import OmegaConf

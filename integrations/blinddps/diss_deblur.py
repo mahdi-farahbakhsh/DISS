@@ -19,7 +19,7 @@ from util.img_utils import Blurkernel, clear_color
 from util.logger import get_logger
 from diss_modules.reward import get_reward_method
 from diss_modules.search import get_search_method
-from diss_modules.eval import get_evaluation_table_string, build_tables
+from diss_modules.eval import get_evaluation_table_string
 
 
 def load_yaml(file_path: str) -> dict:
