@@ -90,3 +90,34 @@ git -C integrations/daps/DAPS apply ../daps_modifications.patch
 python integrations/add_inits.py
 ````
 
+
+
+
+<details>
+<summary>▶️ 5) Blind-DPS Setup</summary>
+
+```bash
+# clone repositories
+git clone https://github.com/BlindDPS/blind-dps.git integrations/blinddps/blind-dps
+git clone https://github.com/LeviBorodenko/motionblur integrations/blinddps/blind-dps/motionblur
+
+# download pretrained models
+mkdir integrations/blinddps/blind-dps/models
+gdown 1nAhgjU8C6DCkOLmWTuPIzA6PMNkNmE5Z -O integrations/blinddps/blind-dps/models/ffhq_10m.pt
+gdown 11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j -O integrations/blinddps/blind-dps/models/kernel_checkpoint.pt
+
+# apply minimal modifications to BlindDPS to call our reward and search modules
+git -C integrations/blinddps/blind-dps/ apply ../blind_dps_modifications.patch
+python integrations/add_inits.py
+</details> <br /> <details> <summary>▶️ 6) DAPS Setup</summary>
+# clone repositories
+git clone https://github.com/zhangbingliang2019/DAPS.git integrations/daps/DAPS
+
+# download pretrained models
+mkdir integrations/daps/DAPS/checkpoints
+gdown 1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh -O integrations/daps/DAPS/checkpoints/ffhq256.pt
+
+# apply minimal modifications to DAPS to call our reward and search modules
+git -C integrations/daps/DAPS apply ../daps_modifications.patch
+python integrations/add_inits.py
+</details> ```
