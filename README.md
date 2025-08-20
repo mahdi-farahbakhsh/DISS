@@ -67,6 +67,7 @@ git clone https://github.com/LeviBorodenko/motionblur integrations/blinddps/blin
 mkdir integrations/blinddps/blind-dps/models
 gdown 1nAhgjU8C6DCkOLmWTuPIzA6PMNkNmE5Z -O integrations/blinddps/blind-dps/models/ffhq_10m.pt
 gdown 11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j -O integrations/blinddps/blind-dps/models/kernel_checkpoint.pt
+gdown 1HAy7P19PckQLczVNXmVF-e_CRxq098uW -O integrations/blinddps/blind-dps/models/imagenet256.pt
 
 # apply minimal modifications to BlindDPS to call our reward and search modules
 git -C integrations/blinddps/blind-dps/ apply ../blind_dps_modifications.patch

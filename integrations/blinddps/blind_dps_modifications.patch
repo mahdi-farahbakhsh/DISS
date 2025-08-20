@@ -112,7 +112,7 @@ index 8585490..bf7ea5a 100644
          return x_t, norm
 \ No newline at end of file
 diff --git a/guided_diffusion/gaussian_diffusion.py b/guided_diffusion/gaussian_diffusion.py
-index 3c3d694..3af3830 100644
+index 3c3d694..93a1601 100644
 --- a/guided_diffusion/gaussian_diffusion.py
 +++ b/guided_diffusion/gaussian_diffusion.py
 @@ -173,7 +173,8 @@ class GaussianDiffusion:
@@ -125,7 +125,7 @@ index 3c3d694..3af3830 100644
          """
          The function used for sampling from noise.
          """ 
-@@ -374,6 +375,38 @@ class DDPM(SpacedDiffusion):
+@@ -374,6 +375,43 @@ class DDPM(SpacedDiffusion):
  
          return {'sample': noisy_sample, 'pred_xstart': out['pred_xstart']}
      
@@ -140,17 +140,23 @@ index 3c3d694..3af3830 100644
 +        out = self.p_mean_variance(model, x, t)
 +        sample = out['mean']
 +
-+
-+        step =t.item()
-+        if search_rewards and step % search.base == 0:
-+            x0hat = out['pred_xstart']
-+            rewards = torch.zeros(x0hat.shape[0], device=x0hat.device)
-+            for reward in search_rewards:
-+                with torch.no_grad():
-+                    rew = reward.get_reward(x0hat)
-+                rewards += rew
-+            resampled_idx = search.search(rewards, step)
-+            sample, out['pred_xstart'] = sample[resampled_idx], out['pred_xstart'][resampled_idx]
++        if self.resampling_idxs is not None:
++            sample, out['pred_xstart'] = sample[self.resampling_idxs], out['pred_xstart'][self.resampling_idxs]
++            print('resampled indices are: ', self.resampling_idxs, flush=True)
++            self.resampling_idxs = None
++        else:
++            step = search.start_step - t.item()
++            if search_rewards and step % search.base == 0 and step > 0:
++                x0hat = out['pred_xstart']
++                rewards = torch.zeros(x0hat.shape[0], device=x0hat.device)
++                for reward in search_rewards:
++                    with torch.no_grad():
++                        rew = reward.get_reward(x0hat)
++                    rewards += rew
++                resampled_idx = search.search(rewards, step)
++                self.resampling_idxs = resampled_idx
++                sample, out['pred_xstart'] = sample[resampled_idx], out['pred_xstart'][resampled_idx]
++                print('resampled indices are: ', resampled_idx, flush=True)
 +
 +
 +        noise = torch.randn_like(x)
@@ -160,11 +166,10 @@ index 3c3d694..3af3830 100644
 +            noisy_sample = sample + noise * t
 +
 +        return {'sample': noisy_sample, 'pred_xstart': out['pred_xstart']}
-+
  
  @register_sampler(name='ddim')
  class DDIM(SpacedDiffusion):
-@@ -415,7 +448,8 @@ class BlindDPS(DDPM):
+@@ -415,7 +453,8 @@ class BlindDPS(DDPM):
                        measurement,
                        measurement_cond_fn,
                        record,
@@ -174,7 +179,7 @@ index 3c3d694..3af3830 100644
         
          assert isinstance(model, dict) and isinstance(x_start, dict)
          
-@@ -478,6 +512,91 @@ class BlindDPS(DDPM):
+@@ -478,6 +517,91 @@ class BlindDPS(DDPM):
  # 
          return updated
  
@@ -194,7 +199,7 @@ index 3c3d694..3af3830 100644
 +                      **kwargs):
 +
 +        assert isinstance(model, dict) and isinstance(x_start, dict)
-+
++        self.resampling_idxs = None
 +        # initialize
 +        x_prev = x_start
 +        device = list(x_prev.values())[0].device
@@ -212,7 +217,7 @@ index 3c3d694..3af3830 100644
 +                if k == 'img':
 +                    output.update({k: self.p_sample(x=x_prev[k], t=time, model=model[k], search_rewards=search_rewards, search=search)})
 +                elif k == 'kernel':
-+                    output.update({k: self.p_sample(x=x_prev[k], t=time, model=model[k])})
++                    output.update({k: self.p_sample(x=x_prev[k], t=time, model=model[k], search_rewards=search_rewards, search=search)})
 +
 +            # uniform prior cases
 +            for k in x_prev:

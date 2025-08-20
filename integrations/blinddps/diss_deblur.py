@@ -64,6 +64,8 @@ def main():
     parser.add_argument('--reg_ord', type=int, default=0, choices=[0, 1])
     # Save Directory
     parser.add_argument('--path', type=str, default='')
+    parser.add_argument('--metrics', type=str, default="psnr,lpips,ssim",
+                        help='Comma-separated list of metrics to compute')
 
     args = parser.parse_args()
 
@@ -163,6 +165,7 @@ def main():
 
     all_tables = []
     num_runs = num_particles // batch_size
+    metrics = [m.strip() for m in args.metrics.split(',')]
 
     # Do Inference
     for i, ref_img in enumerate(loader):
@@ -232,21 +235,12 @@ def main():
                                clear_color(sample['kernel'][0].unsqueeze(0)))
 
                 logger.info('')
-                table = get_evaluation_table_string(sample['img'], ref_img.repeat(batch_size, 1, 1, 1))
+                table = get_evaluation_table_string(sample['img'], ref_img.repeat(batch_size, 1, 1, 1), metrics=metrics)
                 all_tables.append(table)
                 print(table)
             except Exception as e:
                 # write out the error
                 print(f"Error occurred: {e}")
-
-    print()
-    for idx, table in enumerate(all_tables):
-        print(f'results for image {idx // num_runs} and run {idx - (idx // num_runs) * num_runs}')
-        print(table)
-        print()
-
-    t1, t2, t3 = build_tables(all_tables, search.max_group, num_particles)
-    print(t1, '\n\n', t2, '\n\n', t3)
 
     print()
     print('saved in ', args.path)

@@ -9,7 +9,7 @@ conditioning:
 
 data:
   name: ffhq
-  root: ../../data/images
+  root: ../../data/text/images
 
 measurement:
   operator:
@@ -20,15 +20,16 @@ measurement:
     sigma: 0.02
 
 rewards:
-  - name: adaface
+  - name: text-alignment
     steering: [search]
-    data_path: '../../data/additional_images'
-    scale: 16 # the scale for gradient in MCMC steps
+    data_path: '../../data/text/additional_texts'
+    scale: 0
 
 search_algorithm:
   name: group-meeting
-  base: 4
+  base: 50
   min_group: 2
-  max_group: 2
+  max_group: 4
+  start_step: 600
 
-num_particles: 2
+num_particles: 4
