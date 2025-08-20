@@ -97,3 +97,15 @@ python integrations/add_inits.py
 
 </details>
 
+
+### 🔗 Pretrained Models
+Pretrained models used in this project.
+
+| Model            | Download Link                                                                                      |
+|------------------|----------------------------------------------------------------------------------------------------|
+| FFHQ             | [Download](https://drive.google.com/file/d/1BGwhRWUoguF-D8wlZ65tf227gp3cDUDh/view?usp=share_link)  |
+| ImageNet         | [Download](https://drive.google.com/file/d/1HAy7P19PckQLczVNXmVF-e_CRxq098uW/view?usp=share_link)  |
+| GOPRO-wVAE       | [Download](https://drive.google.com/file/d/1vRoDpIsrTRYZKsOMPNbPcMtFDpCT6Foy/view?usp=share_link)  |
+| AdaFace          | [Download](https://drive.google.com/file/d/1g1qdg7_HSzkue7_VrW64fnWuHl0YL2C2/view?usp=share_link)  |
+| Kernel Diffusion |  [Download](https://drive.google.com/file/d/11Xn8tsisCCIrv3aFyitmj55Sc13Wwb8j/view?usp=share_link) |
+
