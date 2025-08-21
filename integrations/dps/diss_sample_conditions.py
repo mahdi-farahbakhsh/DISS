@@ -43,10 +43,11 @@ def main():
     parser.add_argument('--path', type=str)
     parser.add_argument('--n_images', type=int, default=1)
     parser.add_argument('--seed', type=int, default=8)
-    parser.add_argument('--eval_fn_list', type=str, nargs='+', default=['psnr', 'ssim', 'lpips', 'face_similarity'])
+    parser.add_argument('--eval_fn_list', type=str, nargs='+', default=['psnr', 'ssim', 'lpips', 'clip_score'])
     parser.add_argument('--condition_y_scale', type=float, default=0.0)
     parser.add_argument('--start_idx', type=int, default=0)
     parser.add_argument('--end_idx', type=int, default=70)
+    parser.add_argument('--record', action='store_true')
     args = parser.parse_args()
 
     # logger
@@ -95,6 +96,8 @@ def main():
         for cfg in rewards_cfg if 'search' in cfg.get('steering', [])
     ]
 
+    
+
     # get search algorithm:
     num_particles = task_config['num_particles']
     MAX_BATCH_SIZE = 8
@@ -118,7 +121,10 @@ def main():
     noiser = get_noise(**measure_config['noise'])
     logger.info(f"Operation: {measure_config['operator']['name']} / Noise: {measure_config['noise']['name']}")
 
-    
+    # if rewards_cfg['name'] == 'measurement':
+    #     for reward in gradient_rewards + search_rewards:
+    #         reward.set_operator(operator)
+            
 
     # Prepare conditioning method
     cond_config = task_config['conditioning']
@@ -197,6 +203,9 @@ def main():
         for reward in search_rewards + gradient_rewards:
             reward.set_side_info(i)
 
+        
+        print('saved images', flush=True)
+
         for run in range(num_runs):
             # Exception) In case of inpainging,
             if measure_config['operator']['name'] == 'inpainting':
@@ -214,14 +223,18 @@ def main():
                 y = operator.forward(ref_img)
                 y_n = noiser(y)
 
+
             y_n = y_n.repeat(batch_size, 1, 1, 1)
+
+            plt.imsave(os.path.join(out_path, 'input', fname), clear_color(y_n[0].unsqueeze(0)))
+            plt.imsave(os.path.join(out_path, 'label', 'img_' + fname), clear_color(ref_img))
 
             # Sampling
             x_start = torch.randn((batch_size, *ref_img.shape[1:]), device=device).requires_grad_()
             sample = sample_fn(
                 x_start=x_start,
                 measurement=y_n,
-                record=False,
+                record=args.record,
                 save_root=out_path,
                 gradient_rewards=gradient_rewards,
                 search_rewards=search_rewards,
@@ -229,8 +242,8 @@ def main():
                 condition_y_scale=args.condition_y_scale
             )
 
-            plt.imsave(os.path.join(out_path, 'input', fname), clear_color(y_n[0].unsqueeze(0)))
-            plt.imsave(os.path.join(out_path, 'label', 'img_' + fname), clear_color(ref_img))
+            # plt.imsave(os.path.join(out_path, 'input', fname), clear_color(y_n[0].unsqueeze(0)))
+            # plt.imsave(os.path.join(out_path, 'label', 'img_' + fname), clear_color(ref_img))
             for particle in range(batch_size):
                 plt.imsave(
                     os.path.join(out_path, 'recon', 'img_' + fname + '_' + str(particle + run * batch_size) + '.png'),
@@ -238,7 +251,7 @@ def main():
                 )
 
             logger.info('')
-            table = get_evaluation_table_string(sample, ref_img.repeat(batch_size, 1, 1, 1), si_file_id=0)
+            table = get_evaluation_table_string(sample, ref_img.repeat(batch_size, 1, 1, 1), si_file_id=i)
             all_tables.append(table)
             print(table)
 

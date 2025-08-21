@@ -65,6 +65,10 @@ def main():
     # Save Directory
     parser.add_argument('--path', type=str, default='')
 
+    # Start idx and n_images
+    parser.add_argument('--start_idx', type=int, default=0)
+    parser.add_argument('--n_images', type=int, default=70)
+
     args = parser.parse_args()
 
     # logger
@@ -102,10 +106,15 @@ def main():
     batch_size = num_particles if num_particles <= MAX_BATCH_SIZE else MAX_BATCH_SIZE
     search = get_search_method(num_particles=batch_size, **task_config['search_algorithm']) if search_rewards else None
 
+    print('search is: ', search)
+
     # Kernel configs to namespace save space
     args.kernel = task_config["kernel"]
     args.kernel_size = task_config["kernel_size"]
     args.intensity = task_config["intensity"]
+
+
+    logger.info(f"Kernel: {args.kernel}, Kernel size: {args.kernel_size}, Intensity: {args.intensity}")
 
 
     # Save current working directory
@@ -166,6 +175,10 @@ def main():
 
     # Do Inference
     for i, ref_img in enumerate(loader):
+
+        if i < args.start_idx or i >= args.start_idx + args.n_images:
+            continue
+
         for reward in search_rewards + gradient_rewards:
             reward.set_side_info(i)
 
@@ -232,7 +245,7 @@ def main():
                                clear_color(sample['kernel'][0].unsqueeze(0)))
 
                 logger.info('')
-                table = get_evaluation_table_string(sample['img'], ref_img.repeat(batch_size, 1, 1, 1))
+                table = get_evaluation_table_string(sample['img'], ref_img.repeat(batch_size, 1, 1, 1), si_file_id=i)
                 all_tables.append(table)
                 print(table)
             except Exception as e:
@@ -245,7 +258,7 @@ def main():
         print(table)
         print()
 
-    t1, t2, t3 = build_tables(all_tables, search.max_group, num_particles)
+    t1, t2, t3 = build_tables(all_tables, num_particles, num_particles)
     print(t1, '\n\n', t2, '\n\n', t3)
 
     print()
