@@ -273,6 +273,8 @@ class MeasurementReward(Reward):
     def get_reward(self, images: torch.Tensor, **kwargs) -> torch.Tensor:
         dists = - torch.norm(kwargs.get('measurements') - self.operator.measure(images, input_sigma=0), p=2,
                              dim=(1, 2, 3))
+
+        print('In measurement reward ', flush=True)
         # min_dist = self.sigma * np.sqrt(kwargs.get('measurements')[0].numel())
         # print('', flush=True)
         # print('distances are: ', dists, flush=True)
@@ -287,6 +289,7 @@ class MeasurementReward(Reward):
     def set_operator(self, operator):
         self.operator = operator
         self.sigma = self.operator.sigma
+        print('operator set for reward ', self.name, flush=True)
 
     def set_side_info(self, index: int, **kwargs):
         pass
