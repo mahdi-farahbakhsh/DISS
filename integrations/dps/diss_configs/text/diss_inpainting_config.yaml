@@ -32,7 +32,7 @@ search_algorithm:
   name: group-meeting
   base: 50
   min_group: 2
-  max_group: 2
+  max_group: 4
   start_step: 800
 
-num_particles: 2
+num_particles: 4
